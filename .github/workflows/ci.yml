@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test
+
+      # Packs the tarball exactly as `npm publish` would, installs it in
+      # isolation, imports it, and asserts `providerModule` and the AgentBox
+      # contract fields actually shipped. A workspace build can't catch a file
+      # missing from `files` or an export that didn't make it into dist/.
+      - run: npm run validate:package

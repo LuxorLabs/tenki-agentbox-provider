@@ -1,0 +1,76 @@
+{
+  "name": "@luxorlabs/agentbox-provider-tenki",
+  "version": "0.1.0",
+  "description": "Tenki provider plugin for AgentBox — run coding agents in Tenki Firecracker microVMs",
+  "license": "MIT",
+  "author": "Luxor Labs",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "agentbox",
+    "agentbox-provider",
+    "provider",
+    "plugin",
+    "tenki",
+    "sandbox",
+    "firecracker",
+    "coding-agent"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LuxorLabs/agentbox-provider-tenki.git"
+  },
+  "homepage": "https://github.com/LuxorLabs/agentbox-provider-tenki#readme",
+  "bugs": {
+    "url": "https://github.com/LuxorLabs/agentbox-provider-tenki/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "agentbox": {
+    "providerApiVersion": 2
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "npm run clean && tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src test scripts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "validate:package": "node scripts/validate-package.mjs",
+    "prepublishOnly": "npm run build",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.9.0",
+    "@madarco/agentbox-provider-sdk": "^2",
+    "@tenkicloud/sandbox": "^0.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.4.2",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.0",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+*.tgz
+
+# Never commit credentials — the Tenki token lives in the environment or in
+# ~/.agentbox/secrets.env, never in this repo.
+.env
+.env.*
+!.env.example
+
+.DS_Store
+*.log
+.vitest/
+.tsbuildinfo
