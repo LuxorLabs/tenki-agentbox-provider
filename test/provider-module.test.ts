@@ -1,8 +1,7 @@
 /**
- * Contract tests for the exported `providerModule`. These assert the things
- * AgentBox relies on when it loads a plugin — and they must keep passing
- * unchanged once the stub backend is replaced by the real Tenki one, so they are
- * written against the module surface, never against stub behavior.
+ * Contract tests for the exported `providerModule` — the things AgentBox relies
+ * on when it loads a plugin. Written against the module surface rather than any
+ * backend behavior, so they hold regardless of how the backend evolves.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -26,9 +25,9 @@ describe('providerModule', () => {
   });
 
   it('supplies the full lifecycle via createCloudProvider', () => {
-    // The scaffold implements only the thin backend; every method below comes
-    // from the SDK's cloud scaffold, so this asserts the wrapping actually
-    // happened rather than that we hand-wrote a lifecycle.
+    // We implement only the thin backend; every method below comes from the
+    // SDK's cloud scaffold, so this asserts the wrapping actually happened
+    // rather than that we hand-wrote a lifecycle.
     for (const method of ['create', 'inspect', 'exec', 'start', 'stop', 'destroy'] as const) {
       expect(providerModule.provider[method], `provider.${method}`).toBeTypeOf('function');
     }

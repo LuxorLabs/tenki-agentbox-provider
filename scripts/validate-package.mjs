@@ -1,5 +1,5 @@
 /**
- * Publish smoke test for @luxorlabs/agentbox-provider-tenki (CLO-4111 Task 9).
+ * Publish smoke test for @luxorlabs/agentbox-provider-tenki.
  *
  * A local build can't catch a broken *published artifact* — a file missing from
  * `files`, or an export that never made it into dist/. This packs the package
@@ -35,7 +35,7 @@ const REQUIRED_FILES = ['dist/index.js', 'dist/index.d.ts', 'dist/attach-helper.
 const REQUIRED_MODULE_MEMBERS = ['provider', 'doctorChecks'];
 const EXPECTED_FUNCTIONS = ['doctorChecks', 'ensureCredentials', 'readCredStatus'];
 
-/** Provider capabilities this plugin promises (see CLO-4111 Task 6). */
+/** Provider capabilities this plugin promises. */
 const REQUIRED_PROVIDER_MEMBERS = ['create', 'prepare', 'buildAttach', 'checkpoint'];
 
 function run(cmd, args, cwd) {

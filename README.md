@@ -4,10 +4,6 @@ Run [AgentBox](https://agent-box.sh) coding agents in [Tenki](https://tenki.clou
 microVMs — a community provider plugin, published as its own package and registered with
 `agentbox plugin add`.
 
-> **Status: pre-release scaffold.** The package contract, toolchain, and CI are in place; the Tenki
-> backend is being ported from the implementation validated in
-> [madarco/agentbox#244](https://github.com/madarco/agentbox/pull/244). Not yet published to npm.
-
 ## What Tenki is
 
 [Tenki](https://tenki.cloud) provisions Firecracker microVMs on demand, driven by the official
