@@ -13,24 +13,26 @@ Each AgentBox box becomes one Tenki session: a full VM with its own kernel, not 
 
 ## Supported AgentBox features
 
-| Feature                        | Support   | Notes                                                                    |
-| ------------------------------ | --------- | ------------------------------------------------------------------------ |
-| `create` / `destroy`           | Yes       | Workspace seeded by git clone + carried-over stash and untracked files   |
-| `exec`                         | Yes       | Over the session data plane (`session.run`)                              |
-| File transfer (`cp`, download) | Yes       | Streaming read/write via the data plane                                  |
-| Preview URLs                   | Yes       | Public HTTPS per port via `session.exposePort`, plus signed URLs         |
-| Pause / resume                 | Yes       | Free and native (`session.pause` / `session.resume`)                     |
-| Checkpoints                    | Yes       | Id-addressed snapshots (`createSnapshotAndWait`)                         |
-| Interactive attach             | Yes       | Host PTY bridged to `session.ssh()`                                      |
-| Session renewal                | Yes       | `session.extend` keeps a working box past its deadline                   |
-| Base image                     | `prepare` | One-time `agentbox prepare --provider tenki` publishes the runtime image |
-| Docker-in-box                  | No        | Pending nested-virtualization verification                               |
-| Control Hub UI                 | No        | The hub loads only built-in providers; the CLI is fully supported        |
+| Feature                        | Support   | Notes                                                                  |
+| ------------------------------ | --------- | ---------------------------------------------------------------------- |
+| `create` / `destroy`           | Yes       | Workspace seeded by git clone + carried-over stash and untracked files |
+| `exec`                         | Yes       | Over the session data plane (`session.run`)                            |
+| File transfer (`cp`, download) | Yes       | Streaming read/write via the data plane                                |
+| Preview URLs                   | Yes       | Public HTTPS per port via `session.exposePort`, plus signed URLs       |
+| Pause / resume                 | Yes       | Free and native (`session.pause` / `session.resume`)                   |
+| Checkpoints                    | Yes       | Id-addressed snapshots (`createSnapshotAndWait`)                       |
+| Interactive attach             | Yes       | Host OpenSSH over the session SSH transport, short-lived certificate   |
+| Session renewal                | Yes       | `session.extend` keeps a working box past its deadline                 |
+| Agent config                   | Yes       | Host settings/MCP/plugins baked at `prepare`; credentials per box      |
+| Base image                     | `prepare` | One-time `agentbox prepare --provider tenki` bakes a base snapshot     |
+| Docker-in-box                  | No        | Pending nested-virtualization verification                             |
+| Control Hub UI                 | No        | The hub loads only built-in providers; the CLI is fully supported      |
 
 ## Requirements
 
 - Node.js 20 or newer
 - The `agentbox` CLI (0.27.1 or newer — it must support provider SDK v2)
+- An OpenSSH client (`ssh` and `ssh-keygen`) on the host, used for interactive attach
 - A Tenki account with a workspace and an auth token
 
 ## Installation
@@ -47,7 +49,8 @@ full host and credential access, so `plugin add` is the trust boundary — see
 
 ## Authentication
 
-Expose your Tenki auth token as `TENKI_AUTH_TOKEN`:
+On a terminal, the first `agentbox create --provider tenki` prompts for a token and saves it. To set
+it up ahead of time, expose it as `TENKI_AUTH_TOKEN`:
 
 ```bash
 export TENKI_AUTH_TOKEN=...          # or add TENKI_AUTH_TOKEN=… to ~/.agentbox/secrets.env
@@ -60,10 +63,12 @@ never logged and never included in the published package.
 
 ## Basic usage
 
-One-time: publish the AgentBox runtime image into your Tenki workspace, then create a box.
+One-time: bake the AgentBox base image in your Tenki workspace, then create a box. `prepare` boots a
+throwaway builder from Tenki's `sandbox` base, installs tmux, the AgentBox runtime and the coding
+agents, snapshots it, and pins the snapshot id. Every box then boots from that snapshot.
 
 ```bash
-agentbox prepare --provider tenki    # publishes the base image; records it locally
+agentbox prepare --provider tenki    # bakes the base image; records its digest locally
 agentbox create --provider tenki
 agentbox tenki claude                # provider-prefix sugar also works
 ```
@@ -76,16 +81,43 @@ Pin it project-wide with `box.provider: tenki` in `agentbox.yaml`, or per box wi
 Because AgentBox does not add config keys for plugin providers, Tenki reads its settings from the
 generic keys plus its own environment variables:
 
-| Setting            | Where                         | Notes                                        |
-| ------------------ | ----------------------------- | -------------------------------------------- |
-| VM size            | `--size` / `box.size`         | `cpu-memory[-disk]` in GB, e.g. `4-8-20`     |
-| Default checkpoint | `box.defaultCheckpoint`       | Generic key; no per-provider variant         |
-| Base image         | `AGENTBOX_TENKI_BASE_IMAGE`   | Overrides the ref recorded by `prepare`      |
-| Parent image       | `AGENTBOX_TENKI_PARENT_IMAGE` | The image `prepare` builds the base from     |
-| Workspace          | `AGENTBOX_TENKI_WORKSPACE_ID` | Defaults to the first workspace on the token |
-| Session lifetime   | `AGENTBOX_TENKI_TIMEOUT_MS`   | Seeds the host keepalive loop                |
+| Setting            | Where                         | Notes                                                      |
+| ------------------ | ----------------------------- | ---------------------------------------------------------- |
+| VM size            | `--size` / `box.size`         | `cpu-memory[-disk]` in GB, e.g. `4-8-20`                   |
+| Default checkpoint | `box.defaultCheckpoint`       | Generic key; no per-provider variant                       |
+| Base image         | `AGENTBOX_TENKI_BASE_IMAGE`   | Tenki base image `prepare` layers onto (default `sandbox`) |
+| Workspace          | `AGENTBOX_TENKI_WORKSPACE_ID` | Defaults to the token's own scope                          |
+| Session lifetime   | `AGENTBOX_TENKI_TIMEOUT_MS`   | Seeds the host keepalive loop                              |
 
 The baked base image ref lives in `~/.agentbox/tenki-prepared.json`, managed by this plugin.
+
+## Agent configuration and credentials
+
+`prepare` bakes your host's **static** agent config into the base snapshot — settings, MCP servers,
+plugin registries, and `/workspace` pre-trust — so boxes start with your own setup rather than a
+blank one. It is best-effort: an agent whose config can't be read is skipped with a warning rather
+than failing the bake.
+
+One host-side wrinkle is handled for you: codex leaves a live Unix socket at `~/.codex/ipc/ipc.sock`
+whenever it has run, and the upstream staging helper's `rsync -a` cannot recreate a socket (it exits
+23). `prepare` stages codex through a sanitized shadow of that directory, so its config bakes whether
+or not codex is running.
+
+Credentials are handled separately, and deliberately not baked. AgentBox seeds them per box at
+create time into `~/.agentbox-creds/<agent>/`, which the base image pivots into place with symlinks
+(`~/.claude/.credentials.json`, `~/.codex/auth.json`, `~/.local/share/opencode/auth.json`). That
+keeps auth tokens out of an image that may be long-lived or shared, and lets a refreshed token
+propagate without re-baking.
+
+That seeding only has something to push when AgentBox has host-side credential backups
+(`~/.agentbox/<agent>-credentials.json`), which are captured from boxes you have already used. With
+no backup yet, the symlinks are dangling by design: you log into the agent once inside the box, the
+login lands in `~/.agentbox-creds/`, and AgentBox captures it from there for later boxes.
+
+The base image also creates a `vscode` account as an alias of the box user (same uid, same home).
+The credential seed shipped in the current provider SDK extracts with an in-shell `sudo -u vscode`,
+so without that account the seed fails with `sudo: unknown user vscode` and boxes start logged out.
+The alias keeps seeded files owned by the user the agents actually run as.
 
 ## Preview URLs
 
@@ -107,10 +139,16 @@ taken live — the source box keeps running.
 - **`plugin targets provider SDK vN`** — your `agentbox` CLI is too old. Update to 0.27.1 or newer.
 - **Credentials not found** — check `agentbox doctor`. The token must be in the environment or in
   `~/.agentbox/secrets.env`, not a project `.env`.
-- **No base image** — run `agentbox prepare --provider tenki`. Boxes boot from a registry image
-  published into your own Tenki workspace, so this is required once per workspace.
+- **No base image** — run `agentbox prepare --provider tenki`. Boxes boot from a snapshot baked in
+  your own Tenki workspace, so this is required once per workspace. If that snapshot is later deleted
+  (or the token is pointed at another workspace), the next `prepare` notices and re-bakes.
 - **Box expired mid-session** — raise `AGENTBOX_TENKI_TIMEOUT_MS`; the host keepalive extends a
   working session, but it starts from the lifetime the box was created with.
+- **Attach fails to open a shell** — attach needs `ssh` and `ssh-keygen` on the host. Per-box key
+  material lives in `~/.agentbox/boxes/<session-id>/ssh/`; the certificate is re-minted on every
+  attach, so deleting that directory is safe and simply regenerates it.
+- **Attach as a different user** — set `AGENTBOX_TENKI_SSH_USER` if a custom base image does not run
+  as `tenki`.
 
 ## Security considerations
 
