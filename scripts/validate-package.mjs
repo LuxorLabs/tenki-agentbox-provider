@@ -1,5 +1,5 @@
 /**
- * Publish smoke test for @luxorlabs/agentbox-provider-tenki.
+ * Publish smoke test for @tenkicloud/agentbox-provider-tenki.
  *
  * A local build can't catch a broken *published artifact* — a file missing from
  * `files`, or an export that never made it into dist/. This packs the package
@@ -24,7 +24,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const PKG_NAME = '@luxorlabs/agentbox-provider-tenki';
+const PKG_NAME = '@tenkicloud/agentbox-provider-tenki';
 const PKG_DIR = resolve(fileURLToPath(import.meta.url), '..', '..');
 const PROVIDER_NAME = 'tenki';
 
