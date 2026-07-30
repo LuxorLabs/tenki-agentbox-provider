@@ -87,6 +87,19 @@ describe('buildInstallPlan', () => {
     expect(script).toContain('tmux');
   });
 
+  it('installs docker and lets the box user reach the daemon', () => {
+    // In-box docker is verified working on Tenki, and the provider enables
+    // dockerd. The agent runs unprivileged, so group membership — not the socket
+    // mode — is what makes `docker` usable without sudo.
+    const byName = new Map(plan.map((s) => [s.name, s]));
+    const apt = byName.get('apt-packages')!.command;
+    expect(apt).toContain('docker.io');
+    expect(apt).toContain('usermod -aG docker tenki');
+    const verify = plan.at(-1)!.command;
+    expect(verify).toContain('command -v dockerd');
+    expect(verify).toContain('grep -qx docker');
+  });
+
   it('installs the three coding agents', () => {
     for (const pkg of ['@anthropic-ai/claude-code', '@openai/codex', 'opencode-ai']) {
       expect(script).toContain(pkg);
@@ -98,7 +111,10 @@ describe('buildInstallPlan', () => {
     // runs as `tenki` and its guest agent runs as that user.
     expect(script).toContain('/home/vscode');
     expect(script).toContain('/home/tenki');
-    expect(script).not.toMatch(/usermod|groupmod|userdel/);
+    // Renaming, moving or deleting the platform account would break Tenki's own
+    // guest agent. Adding a supplementary group (`usermod -aG docker`) is fine,
+    // so this guards the destructive forms specifically.
+    expect(script).not.toMatch(/usermod\s+-l\b|usermod\s[^\n]*\s-m\b|groupmod\s+-n\b|userdel/);
   });
 
   it('creates /workspace, which the base image lacks', () => {

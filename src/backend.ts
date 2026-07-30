@@ -24,7 +24,7 @@
  *     snapshot id, matching vercel/e2b).
  */
 
-import { createReadStream, createWriteStream } from 'node:fs';
+import { createReadStream, createWriteStream, rmSync } from 'node:fs';
 import { basename, posix } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -44,6 +44,7 @@ import type { Session, SessionState } from './sdk.js';
 import { getTenkiClient } from './sdk.js';
 import { withTenkiRetry } from './retry.js';
 import { ensureTenkiBaseImage, readPreparedState } from './prepared-state.js';
+import { sshKeyDir } from './build-attach.js';
 
 /** In-box port the cloud WebProxy binds + that we expose as the box's "web" port.
  *  8080 matches the non-privileged convention vercel/e2b use for microVMs (the
@@ -426,6 +427,14 @@ export const tenkiBackend: CloudBackend = {
         }
       },
     );
+    // The attach keypair outlives the session it authenticates, so without this
+    // every box ever created leaves a private key behind on the host. Losing the
+    // key is harmless once the sandbox is gone, so failures here are ignored.
+    try {
+      rmSync(sshKeyDir(h.sandboxId), { recursive: true, force: true });
+    } catch {
+      // best effort
+    }
   },
 
   async state(h: CloudHandle): Promise<CloudState> {

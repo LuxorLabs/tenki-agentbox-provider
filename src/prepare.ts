@@ -209,13 +209,23 @@ export function buildInstallPlan(): PrepareStep[] {
       name: 'apt-packages',
       root: true,
       timeoutMs: 600_000,
-      // tmux is the one hard dependency the base image lacks, and every
+      // tmux: the one hard dependency the base image lacks, and every
       // interactive attach runs inside a tmux session.
+      //
+      // docker.io: in-box Docker. Verified working on a Tenki microVM — cgroup2,
+      // native overlay2 (not the slow vfs fallback), and the shared
+      // `agentbox-dockerd-start` launcher brings the daemon up. Containers do
+      // not need nested virtualization, so the absence of /dev/kvm is irrelevant.
       command: [
         'set -euo pipefail',
         'export DEBIAN_FRONTEND=noninteractive',
         'apt-get update -qq',
-        'apt-get install -y --no-install-recommends tmux',
+        'apt-get install -y --no-install-recommends tmux docker.io',
+        // The agent runs unprivileged. Login shells (attach, tmux) reach the
+        // daemon through this group; Tenki's guest agent starts its exec
+        // processes without supplementary groups, so those rely instead on the
+        // socket mode the dockerd launcher sets. Both paths are covered.
+        `usermod -aG docker ${BOX_USER}`,
       ].join('\n'),
     },
     {
@@ -323,6 +333,11 @@ export function buildInstallPlan(): PrepareStep[] {
         'set -euo pipefail',
         'command -v tmux >/dev/null',
         'command -v agentbox-ctl >/dev/null',
+        // In-box docker: the binaries plus the box user's group membership, so a
+        // login shell in the box reaches the daemon without sudo.
+        'command -v docker >/dev/null',
+        'command -v dockerd >/dev/null',
+        `id -nG ${BOX_USER} | tr ' ' '\\n' | grep -qx docker`,
         'test -x /usr/local/bin/agentbox-ctl',
         'test -f /etc/claude-code/managed-settings.json',
         'for a in claude codex opencode; do command -v "$a" >/dev/null || { echo "agent $a missing" >&2; exit 1; }; done',

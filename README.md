@@ -11,22 +11,22 @@ microVMs — a community provider plugin, published as its own package and regis
 ConnectRPC control plane plus a per-session data plane for command execution and file transfer.
 Each AgentBox box becomes one Tenki session: a full VM with its own kernel, not a shared container.
 
-## Supported AgentBox features
+## What you get
 
-| Feature                        | Support   | Notes                                                                  |
-| ------------------------------ | --------- | ---------------------------------------------------------------------- |
-| `create` / `destroy`           | Yes       | Workspace seeded by git clone + carried-over stash and untracked files |
-| `exec`                         | Yes       | Over the session data plane (`session.run`)                            |
-| File transfer (`cp`, download) | Yes       | Streaming read/write via the data plane                                |
-| Preview URLs                   | Yes       | Public HTTPS per port via `session.exposePort`, plus signed URLs       |
-| Pause / resume                 | Yes       | Free and native (`session.pause` / `session.resume`)                   |
-| Checkpoints                    | Yes       | Id-addressed snapshots (`createSnapshotAndWait`)                       |
-| Interactive attach             | Yes       | Host OpenSSH over the session SSH transport, short-lived certificate   |
-| Session renewal                | Yes       | `session.extend` keeps a working box past its deadline                 |
-| Agent config                   | Yes       | Host settings/MCP/plugins baked at `prepare`; credentials per box      |
-| Base image                     | `prepare` | One-time `agentbox prepare --provider tenki` bakes a base snapshot     |
-| Docker-in-box                  | No        | Pending nested-virtualization verification                             |
-| Control Hub UI                 | No        | The hub loads only built-in providers; the CLI is fully supported      |
+| Feature                   | What it means                                                                                              |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **A VM per box**          | Every box is its own Firecracker microVM — real kernel isolation, not a shared container                   |
+| **Your project, ready**   | The workspace arrives as a git clone on a per-box branch, carrying your uncommitted and untracked changes  |
+| **Agents preinstalled**   | `claude`, `codex` and `opencode` are in the image; `agentbox tenki claude` drops you straight into one     |
+| **Your setup travels**    | Settings, MCP servers and plugins come from your host; credentials are seeded per box, never baked in      |
+| **Interactive terminal**  | Attach over SSH into a tmux session — detach and come back, and resizing your window works                 |
+| **Public preview URLs**   | Every exposed port gets an HTTPS URL with no tunnel or token to manage; signed URLs for private ports      |
+| **Files in and out**      | `agentbox cp` moves files between your machine and the box, in either direction                            |
+| **Docker inside the box** | `docker build` and `docker run` work in the box, so containerised test suites and compose stacks run there |
+| **Free pause and resume** | Pausing costs nothing and keeps running processes; resuming picks up where you left off                    |
+| **Checkpoints**           | Snapshot a warm box and start new ones from it, dependencies and all                                       |
+| **Long sessions**         | A box you are actively using has its deadline extended for you                                             |
+| **Seconds to a new box**  | A one-time `agentbox prepare` bakes the base image, so every box after that boots ready                    |
 
 ## Requirements
 

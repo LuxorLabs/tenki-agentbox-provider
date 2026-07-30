@@ -12,11 +12,11 @@
  *     boots from it (`createSnapshotAndWait` returns an id-addressed reusable
  *     snapshot, same shape as vercel/e2b).
  *
- * `launchDockerd: false` — Tenki runs Firecracker microVMs; nested-container
- * (DinD) support inside a Tenki VM is not yet verified, so we take the
- * conservative default (matching vercel) and don't auto-start dockerd, which
- * would otherwise log a spurious failure on every create/resume. Flip to true
- * once DinD is confirmed and baked into the base image.
+ * `launchDockerd: true` — in-box Docker works on Tenki: verified on a live
+ * microVM with cgroup2 and native overlay2 (not the vfs fallback), brought up by
+ * the shared `agentbox-dockerd-start` launcher. Containers need no nested
+ * virtualization, so the absence of /dev/kvm doesn't matter. The daemon is
+ * started by the same idempotent bootstrap kick used on create and resume.
  */
 
 import {
@@ -51,7 +51,7 @@ const BACKEND_NAME = PROVIDER_NAME;
 
 const cloudProvider = createCloudProvider(tenkiBackend, {
   defaultResources: { cpu: 2, memory: 4, disk: 8 },
-  launchDockerd: false,
+  launchDockerd: true,
 });
 
 /** Session lifetime override, in ms. Falsy/invalid values fall through to the default. */
