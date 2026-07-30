@@ -184,6 +184,20 @@ agentbox plugin add .        # register this working copy
 agentbox doctor
 ```
 
+## Releasing
+
+Releases run from the **Publish** workflow, and the version in `package.json` is the single source
+of truth for both npm and the git tag:
+
+1. Bump `version` in `package.json` on `main`.
+2. Run the workflow with `dry_run` left on. It runs every CI gate plus `npm publish --dry-run`,
+   and changes nothing.
+3. Run it again with `dry_run` off. It publishes to npm, tags the commit `v<version>`, and cuts a
+   GitHub release with generated notes.
+
+Publishing is idempotent — an already-published version is skipped — so a re-run after a partial
+failure is safe. Authentication is npm trusted publishing (OIDC), so there is no token to rotate.
+
 ## License
 
 MIT — see [LICENSE](./LICENSE). Maintained by Luxor Labs. AgentBox itself is a separate project by

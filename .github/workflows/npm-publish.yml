@@ -1,0 +1,173 @@
+name: Publish
+
+# Publishes the package to npm, then tags the commit and cuts a GitHub release.
+#
+# The version is whatever `package.json` says — bump it on main first, then
+# dispatch this workflow. `dry_run` (on by default) runs every gate plus a
+# publish dry-run and touches neither npm nor the repo, so a rehearsal is free.
+#
+# Auth is npm trusted publishing (OIDC): no token to store or rotate. It has to
+# be configured for this package on npmjs.com against this repository and the
+# `npm-publish` environment. A package that does not exist on npm yet may need
+# one token-based publish before that option is offered — in that case add an
+# `NPM_TOKEN` secret to the environment and give the publish step
+# `NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}`.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Run checks and a publish dry-run without publishing or tagging
+        type: boolean
+        default: true
+
+permissions:
+  contents: write # pushes the version tag and creates the release
+  id-token: write # npm trusted publishing
+
+concurrency:
+  group: npm-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm-publish
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          # Tags are needed to tell "already released" from "tag collision".
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          # Trusted publishing needs npm >= 11.5.1, which this Node ships.
+          node-version: 24.13.0
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The same gates as CI, so a release can never ship something CI would
+      # have rejected — including validate:package, which packs the tarball and
+      # asserts the plugin contract survived the `files` allowlist.
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Validate the published package
+        run: npm run validate:package
+
+      - name: Resolve package version
+        id: pkg
+        run: |
+          set -euo pipefail
+          {
+            echo "name=$(node -p 'require("./package.json").name')"
+            echo "version=$(node -p 'require("./package.json").version')"
+          } >> "$GITHUB_OUTPUT"
+
+      # Fail before publishing rather than after: a tag on some other commit
+      # means the version was not bumped, and publishing first would leave npm
+      # and the repo disagreeing about what this version is.
+      - name: Check the version tag is free
+        env:
+          TAG: v${{ steps.pkg.outputs.version }}
+        run: |
+          set -euo pipefail
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            if [ "$(git rev-list -n1 "${TAG}")" != "${GITHUB_SHA}" ]; then
+              echo "${TAG} already exists and points at a different commit — bump the version" >&2
+              exit 1
+            fi
+            echo "${TAG} already points at this commit"
+          fi
+
+      - name: Publish if version is new
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          NAME: ${{ steps.pkg.outputs.name }}
+          VERSION: ${{ steps.pkg.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          PUBLISHED=false
+          if npm view "${NAME}@${VERSION}" version >/dev/null 2>&1; then
+            PUBLISHED=true
+          fi
+
+          if [ "${DRY_RUN}" = "true" ]; then
+            npm pack --dry-run
+            if [ "${PUBLISHED}" = "true" ]; then
+              echo "${NAME}@${VERSION} already published, skipping publish dry-run"
+              exit 0
+            fi
+            npm publish --access public --dry-run
+            exit 0
+          fi
+
+          if [ "${PUBLISHED}" = "true" ]; then
+            echo "${NAME}@${VERSION} already published, skipping"
+            exit 0
+          fi
+
+          npm publish --access public
+
+      # Tagging comes after the publish so a failed publish leaves no tag
+      # behind. The reverse gap — published but untagged — is recoverable: the
+      # publish step above is idempotent, so re-running finishes the job.
+      - name: Tag the release
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          TAG: v${{ steps.pkg.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [ "${DRY_RUN}" = "true" ]; then
+            echo "dry run: would tag ${GITHUB_SHA} as ${TAG}"
+            exit 0
+          fi
+
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "${TAG} already exists, leaving it alone"
+            exit 0
+          fi
+
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              tag -a "${TAG}" -m "${TAG}"
+          git push origin "${TAG}"
+
+      - name: Create the GitHub release
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ steps.pkg.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [ "${DRY_RUN}" = "true" ]; then
+            echo "dry run: would create release ${TAG}"
+            exit 0
+          fi
+
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "release ${TAG} already exists"
+            exit 0
+          fi
+
+          gh release create "${TAG}" --title "${TAG}" --generate-notes --verify-tag
