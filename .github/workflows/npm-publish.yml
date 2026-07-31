@@ -54,6 +54,11 @@ jobs:
       # The same gates as CI, so a release can never ship something CI would
       # have rejected — including validate:package, which packs the tarball and
       # asserts the plugin contract survived the `files` allowlist.
+
+      # The version about to be published must be documented.
+      - name: Check the changelog covers this version
+        run: npm run check:changelog
+
       - name: Lint
         run: npm run lint
 

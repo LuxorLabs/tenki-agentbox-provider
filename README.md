@@ -1,4 +1,4 @@
-# @tenkicloud/agentbox-provider-tenki
+# @tenkicloud/agentbox-provider
 
 Run [AgentBox](https://agent-box.sh) coding agents in [Tenki](https://tenki.cloud) Firecracker
 microVMs — a community provider plugin, published as its own package and registered with
@@ -38,8 +38,8 @@ Each AgentBox box becomes one Tenki session: a full VM with its own kernel, not 
 ## Installation
 
 ```bash
-npm i -g @tenkicloud/agentbox-provider-tenki
-agentbox plugin add @tenkicloud/agentbox-provider-tenki
+npm i -g @tenkicloud/agentbox-provider
+agentbox plugin add @tenkicloud/agentbox-provider
 agentbox plugin list            # -> tenki … (SDK v2)
 ```
 
@@ -68,7 +68,7 @@ throwaway builder from Tenki's `sandbox` base, installs tmux, the AgentBox runti
 agents, snapshots it, and pins the snapshot id. Every box then boots from that snapshot.
 
 ```bash
-agentbox prepare --provider tenki    # bakes the base image; records its digest locally
+agentbox prepare --provider tenki    # bakes the base image; pins the snapshot id locally
 agentbox create --provider tenki
 agentbox tenki claude                # provider-prefix sugar also works
 ```
@@ -89,7 +89,7 @@ generic keys plus its own environment variables:
 | Workspace          | `AGENTBOX_TENKI_WORKSPACE_ID` | Defaults to the token's own scope                          |
 | Session lifetime   | `AGENTBOX_TENKI_TIMEOUT_MS`   | Seeds the host keepalive loop                              |
 
-The baked base image ref lives in `~/.agentbox/tenki-prepared.json`, managed by this plugin.
+The baked base snapshot id lives in `~/.agentbox/tenki-prepared.json`, managed by this plugin.
 
 ## Agent configuration and credentials
 
@@ -135,7 +135,7 @@ taken live — the source box keeps running.
 ## Troubleshooting
 
 - **`unknown provider "tenki"`** — the plugin isn't registered. Run `agentbox plugin add
-@tenkicloud/agentbox-provider-tenki` and confirm with `agentbox plugin list`.
+@tenkicloud/agentbox-provider` and confirm with `agentbox plugin list`.
 - **`plugin targets provider SDK vN`** — your `agentbox` CLI is too old. Update to 0.27.1 or newer.
 - **Credentials not found** — check `agentbox doctor`. The token must be in the environment or in
   `~/.agentbox/secrets.env`, not a project `.env`.
@@ -160,12 +160,22 @@ taken live — the source box keeps running.
 - Each box is an isolated microVM, so an agent cannot reach your host filesystem. Host-side
   operations that need your credentials (`git push` in particular) are brokered by the AgentBox host
   relay rather than by handing keys to the box.
+- **The microVM is the boundary, not the in-box user.** Inside a box the agent has passwordless
+  `sudo` and Docker access, which is root-equivalent by design — in-box Docker requires it.
+- Interactive attach trusts the Tenki gateway's TLS rather than an SSH host key (the "host" is a
+  session id, not a stable endpoint). If you override `TENKI_BASE_URL` or `TENKI_GATEWAY_ADDRESS`,
+  point them only at endpoints you trust.
+- Preview URLs are public: anyone holding one can reach the port, with no token. Use the signed
+  (expiring) variant for anything that should not stay durably reachable.
+
+The full trust model, and how to report a vulnerability privately, are in
+[SECURITY.md](./SECURITY.md).
 
 ## Uninstallation
 
 ```bash
 agentbox plugin remove tenki                       # unregister (leaves the npm package installed)
-npm uninstall -g @tenkicloud/agentbox-provider-tenki
+npm uninstall -g @tenkicloud/agentbox-provider
 ```
 
 Destroy any remaining boxes with `agentbox destroy <name>` first — removing the plugin leaves
@@ -184,12 +194,18 @@ agentbox plugin add .        # register this working copy
 agentbox doctor
 ```
 
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full gate set, the test conventions, and what to
+know before running `prepare` against a real (billable) workspace. Release notes are in
+[CHANGELOG.md](./CHANGELOG.md).
+
 ## Releasing
 
 Releases run from the **Publish** workflow, and the version in `package.json` is the single source
 of truth for both npm and the git tag:
 
-1. Bump `version` in `package.json` on `main`.
+1. Bump `version` in `package.json` on `main`, and add the matching section to
+   [CHANGELOG.md](./CHANGELOG.md). Both CI and the publish workflow fail if the declared version has
+   no changelog entry (`npm run check:changelog`).
 2. Run the workflow with `dry_run` left on. It runs every CI gate plus `npm publish --dry-run`,
    and changes nothing.
 3. Run it again with `dry_run` off. It publishes to npm, tags the commit `v<version>`, and cuts a

@@ -40,7 +40,7 @@ import type {
   CloudSandboxSummary,
   CloudState,
 } from '@madarco/agentbox-provider-sdk';
-import type { Session, SessionState } from './sdk.js';
+import type { ExposedPort, Session, SessionState } from './sdk.js';
 import { getTenkiClient } from './sdk.js';
 import { withTenkiRetry } from './retry.js';
 import { ensureTenkiBaseImage, readPreparedState } from './prepared-state.js';
@@ -110,6 +110,53 @@ export function previewSlug(sandboxId: string, port: number): string {
       .slice(-12)
       .toLowerCase() || 'box';
   return `ab-${id}-${String(port)}`;
+}
+
+/**
+ * Minimum lifetime handed to a re-minted expiring share, so a refresh can't
+ * return a URL that is already about to die.
+ */
+const REFRESH_MIN_TTL_MS = 60_000;
+
+// --- preview share kinds ---------------------------------------------------
+//
+// The two kinds this backend mints are mutually exclusive per share, because the
+// API rejects `slug` + `ttlMs` together (`expires_at is not supported when slug
+// is set`). So a share either carries our stable slug and never expires, or it
+// carries a server-assigned URL and an `expiresAt`. `expiresAt` is the
+// discriminator.
+//
+// Selecting by KIND rather than by port alone is the whole point: a port can
+// hold either kind, and reusing whatever was found first meant
+// `signedPreviewUrl` could hand back the permanent public URL (never expiring,
+// despite the caller asking for an expiry) and `previewUrl` could hand back one
+// that dies minutes later.
+
+/** The non-expiring, stable-slug share for `port`, if one is exposed. */
+export function findPermanentShare(
+  shares: readonly ExposedPort[],
+  port: number,
+): ExposedPort | undefined {
+  return shares.find((p) => p.port === port && p.expiresAt === undefined);
+}
+
+/**
+ * An expiring share for `port` with at least `minRemainingMs` of life left. A
+ * shorter-lived one is rejected rather than reused, so a signed URL is never
+ * quietly weaker than the caller asked for.
+ */
+export function findExpiringShare(
+  shares: readonly ExposedPort[],
+  port: number,
+  minRemainingMs: number,
+  nowMs: number,
+): ExposedPort | undefined {
+  return shares.find(
+    (p) =>
+      p.port === port &&
+      p.expiresAt !== undefined &&
+      p.expiresAt.getTime() - nowMs >= minRemainingMs,
+  );
 }
 
 async function resolveSession(handle: CloudHandle): Promise<Session> {
@@ -566,10 +613,18 @@ export const tenkiBackend: CloudBackend = {
   async previewUrl(h: CloudHandle, port: number): Promise<CloudPreviewUrl> {
     return withTenkiRetry({ method: 'previewUrl', retryOnAmbiguous: true }, async () => {
       const session = await resolveSession(h);
-      // Reuse an existing share for this port (idempotent across the box's
-      // lifetime) before minting a new one.
-      const existing = (await session.listExposedPorts()).find((p) => p.port === port);
+      // Reuse only a PERMANENT share (idempotent across the box's lifetime).
+      // Handing back an expiring one would give the caller — and the scaffold's
+      // cache — a URL that dies on its own.
+      const shares = await session.listExposedPorts();
+      const existing = findPermanentShare(shares, port);
       if (existing) return { url: existing.previewUrl };
+      // The port is held by the other kind. Clear it first: unexpose-then-expose
+      // is the sequence `refreshPreviewUrl` already relies on, whereas exposing
+      // a port that is already exposed is not a behaviour we can count on.
+      if (shares.some((p) => p.port === port)) {
+        await session.unexposePort(port).catch(() => undefined);
+      }
       const exposed = await session.exposePort(port, { slug: previewSlug(h.sandboxId, port) });
       return { url: exposed.previewUrl };
     });
@@ -587,11 +642,18 @@ export const tenkiBackend: CloudBackend = {
   ): Promise<CloudPreviewUrl> {
     return withTenkiRetry({ method: 'signedPreviewUrl', retryOnAmbiguous: true }, async () => {
       const session = await resolveSession(h);
-      const existing = (await session.listExposedPorts()).find((p) => p.port === port);
+      const ttlMs = Math.max(1, expiresInSeconds) * 1000;
+      const shares = await session.listExposedPorts();
+      // Reuse only an EXPIRING share that still covers the requested window.
+      // Reusing any share for the port meant a request for a 60-second URL could
+      // be answered with the permanent public one, which never expires — the
+      // caller believes the exposure lapses and it does not.
+      const existing = findExpiringShare(shares, port, ttlMs, Date.now());
       if (existing) return { url: existing.previewUrl };
-      const exposed = await session.exposePort(port, {
-        ttlMs: Math.max(1, expiresInSeconds) * 1000,
-      });
+      if (shares.some((p) => p.port === port)) {
+        await session.unexposePort(port).catch(() => undefined);
+      }
+      const exposed = await session.exposePort(port, { ttlMs });
       return { url: exposed.previewUrl };
     });
   },
@@ -600,10 +662,25 @@ export const tenkiBackend: CloudBackend = {
   async refreshPreviewUrl(h: CloudHandle, port: number): Promise<CloudPreviewUrl> {
     return withTenkiRetry({ method: 'refreshPreviewUrl', retryOnAmbiguous: true }, async () => {
       const session = await resolveSession(h);
+      // Re-mint the SAME KIND that was there. Unconditionally re-exposing with
+      // the stable slug silently promoted an expiring share into a permanent
+      // public one: a refresh must never widen exposure beyond what the share it
+      // replaces already had.
+      const prior = (await session.listExposedPorts()).find((p) => p.port === port);
+      const priorRemainingMs =
+        prior?.expiresAt === undefined ? undefined : prior.expiresAt.getTime() - Date.now();
       try {
         await session.unexposePort(port);
       } catch {
         // best-effort: the share may already be gone
+      }
+      if (priorRemainingMs !== undefined) {
+        // Floor the replacement's lifetime: the prior share may have been at the
+        // very end of its window (or already past it) when the refresh fired.
+        const exposed = await session.exposePort(port, {
+          ttlMs: Math.max(REFRESH_MIN_TTL_MS, priorRemainingMs),
+        });
+        return { url: exposed.previewUrl };
       }
       const exposed = await session.exposePort(port, { slug: previewSlug(h.sandboxId, port) });
       return { url: exposed.previewUrl };
