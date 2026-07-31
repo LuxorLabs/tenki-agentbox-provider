@@ -150,7 +150,7 @@ export async function buildTenkiAttach(
   if (!existsSync(helper)) {
     throw new Error(
       `tenki attach helper not found at ${helper} — the installed ` +
-        '@tenkicloud/agentbox-provider-tenki is missing dist/attach-helper.cjs; reinstall the package.',
+        '@tenkicloud/agentbox-provider is missing dist/attach-helper.cjs; reinstall the package.',
     );
   }
 

@@ -1,4 +1,4 @@
-# @tenkicloud/agentbox-provider-tenki
+# @tenkicloud/agentbox-provider
 
 Run [AgentBox](https://agent-box.sh) coding agents in [Tenki](https://tenki.cloud) Firecracker
 microVMs — a community provider plugin, published as its own package and registered with
@@ -38,8 +38,8 @@ Each AgentBox box becomes one Tenki session: a full VM with its own kernel, not 
 ## Installation
 
 ```bash
-npm i -g @tenkicloud/agentbox-provider-tenki
-agentbox plugin add @tenkicloud/agentbox-provider-tenki
+npm i -g @tenkicloud/agentbox-provider
+agentbox plugin add @tenkicloud/agentbox-provider
 agentbox plugin list            # -> tenki … (SDK v2)
 ```
 
@@ -135,7 +135,7 @@ taken live — the source box keeps running.
 ## Troubleshooting
 
 - **`unknown provider "tenki"`** — the plugin isn't registered. Run `agentbox plugin add
-@tenkicloud/agentbox-provider-tenki` and confirm with `agentbox plugin list`.
+@tenkicloud/agentbox-provider` and confirm with `agentbox plugin list`.
 - **`plugin targets provider SDK vN`** — your `agentbox` CLI is too old. Update to 0.27.1 or newer.
 - **Credentials not found** — check `agentbox doctor`. The token must be in the environment or in
   `~/.agentbox/secrets.env`, not a project `.env`.
@@ -165,7 +165,7 @@ taken live — the source box keeps running.
 
 ```bash
 agentbox plugin remove tenki                       # unregister (leaves the npm package installed)
-npm uninstall -g @tenkicloud/agentbox-provider-tenki
+npm uninstall -g @tenkicloud/agentbox-provider
 ```
 
 Destroy any remaining boxes with `agentbox destroy <name>` first — removing the plugin leaves
