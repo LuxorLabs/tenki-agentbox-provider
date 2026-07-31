@@ -4,6 +4,23 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.1.1 — 2026-07-31
+
+Development-toolchain maintenance. **The published artifact is unchanged** — same `dist/`, same
+runtime dependencies, same behaviour — so there is nothing here that requires a consumer to upgrade.
+
+### Security
+
+- Upgraded the dev toolchain to clear 10 advisories reported by `npm audit`: `eslint` 9 → 10 (a
+  `brace-expansion` denial-of-service reached through `minimatch`) and `vitest` 2 → 4 (an arbitrary
+  file read and execute in the Vitest UI server, plus `vite` and `esbuild` dev-server issues), with
+  `typescript-eslint` and `eslint-config-prettier` moved to the versions those majors require.
+- Pinned `overrides.esbuild` to a patched line. `tsup` resolves an esbuild carrying a low-severity
+  advisory, and the override lifts it so `npm audit` reports clean.
+
+All ten were development dependencies. None was ever installed by a consumer of this package, and
+`npm audit --omit=dev` reported no vulnerabilities before or after.
+
 ## 0.1.0 — 2026-07-31
 
 First public release: run AgentBox coding agents in Tenki Firecracker microVMs, as a community
