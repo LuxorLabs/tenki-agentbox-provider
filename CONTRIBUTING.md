@@ -7,7 +7,8 @@ issue.
 
 ## Getting set up
 
-You need Node.js 20 or newer.
+The package itself runs on Node.js 20 or newer (`engines`), but the dev toolchain needs a recent
+patch line — eslint 10 requires Node `^20.19` / `^22.13` / `>=24`. CI runs on 22.
 
 ```bash
 npm install

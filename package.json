@@ -1,6 +1,6 @@
 {
   "name": "@tenkicloud/agentbox-provider",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Tenki provider plugin for AgentBox — run coding agents in Tenki Firecracker microVMs",
   "license": "MIT",
   "author": "Luxor Labs",
@@ -67,12 +67,15 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
-    "eslint": "^9.17.0",
-    "eslint-config-prettier": "^9.1.0",
+    "eslint": "^10.8.0",
+    "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.4.2",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
-    "typescript-eslint": "^8.18.0",
-    "vitest": "^2.1.8"
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "esbuild": "^0.28.1"
   }
 }
