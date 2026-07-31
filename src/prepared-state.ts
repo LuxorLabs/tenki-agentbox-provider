@@ -4,14 +4,14 @@
  * (`ensureTenkiBaseImage()`) and `backend.provision` can resolve the base
  * image every box boots from.
  *
- * Unlike E2B (which bakes a template from a build DSL), Tenki boots a session
- * from a registry image ref (`workspace/name:tag`) or a snapshot id. The
- * "base" recorded here is the Tenki registry ref carrying the AgentBox runtime
- * (agentbox-ctl, the agents, tmux) — published into the workspace registry by
- * `prepare`. Per-box `create` then boots from it in seconds.
+ * Tenki boots a session from a snapshot id.
+ * The "base" recorded here is the ID of the snapshot carrying
+ * the AgentBox runtime (agentbox-ctl, the agents, tmux), captured by
+ * `prepare` from a throwaway builder sandbox. Per-box `create` then boots from
+ * it in seconds.
  *
- * Schema versioned so future shape changes can migrate; only `schema: 1` is
- * accepted today.
+ * Schema versioned so future shape changes can migrate. Only `schema: 2` is
+ * accepted; an older file is refused by `readPreparedState` and simply re-baked.
  */
 
 import {

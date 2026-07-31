@@ -17,10 +17,10 @@ import { UserFacingError } from '@madarco/agentbox-provider-sdk';
 import { ensureTenkiEnvLoaded } from './env-loader.js';
 
 export { TenkiSandbox };
-// `TemplateSpec` is a runtime value (the fluent spec builder `prepare` composes),
-// not just a type — re-exported here so the whole SDK surface stays behind this
-// one module.
-export { TemplateSpec } from '@tenkicloud/sandbox';
+// The template API is deliberately unused: `prepare` bakes its base from a
+// builder sandbox instead (see the header of ./prepare.ts for why). The
+// `Template*` types below are re-exported for completeness of this seam; no
+// `TemplateSpec` value export, so nothing suggests a builder that isn't wired up.
 export type {
   Session,
   ClientOptions,

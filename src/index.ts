@@ -7,10 +7,11 @@
  * Three capabilities are overridden on top of the cloud scaffold:
  *   - `prepare`     — bake the AgentBox base snapshot in the Tenki workspace
  *                     (`agentbox prepare --provider tenki`).
- *   - `buildAttach` — host-PTY ↔ `session.ssh()` bridge (no host SSH binary).
+ *   - `buildAttach` — the host's own `ssh` client, pointed at the session
+ *                     through a `ProxyCommand` that bridges stdio to
+ *                     `session.ssh()`. Requires OpenSSH on the host.
  *   - `checkpoint`  — store the Tenki snapshot id in the manifest so restore
- *     boots from it (`createSnapshotAndWait` returns an id-addressed reusable
- *     snapshot, same shape as vercel/e2b).
+ *     boots from it (`createSnapshotAndWait` returns an id-addressed snapshot).
  *
  * `launchDockerd: true` — in-box Docker works on Tenki: verified on a live
  * microVM with cgroup2 and native overlay2 (not the vfs fallback), brought up by
@@ -135,8 +136,7 @@ function snapshotLabel(boxName: string, checkpointName: string): string {
  * Tenki-specific checkpoint capability. We capture the SDK-returned opaque
  * snapshot id and store THAT in the manifest's `snapshotName` field — the cloud
  * create flow passes `manifest.snapshotName` straight to `provision({ snapshot })`,
- * and the Tenki backend boots from it as `createAndWait({ snapshotId })`. (Same
- * id-addressed shape as vercel/e2b.)
+ * and the Tenki backend boots from it as `createAndWait({ snapshotId })`.
  */
 const tenkiCheckpoint: ProviderCheckpoint = {
   async create(box: BoxRecord, name: string) {

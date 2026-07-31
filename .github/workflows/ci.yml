@@ -5,18 +5,30 @@ on:
     branches: [main]
   pull_request:
 
+# Read-only by default. CI needs nothing more, and a public repo takes pull
+# requests from forks — the token this job gets should not be able to write.
+permissions:
+  contents: read
+
 jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # Actions are pinned by commit SHA (not a floating tag) so a compromised or
+      # retagged upstream release can't silently change what runs here. Same pins
+      # as npm-publish.yml — keep them in step.
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 22
           cache: npm
 
       - run: npm ci
+
+      # A version bump with no CHANGELOG entry is caught here
+      - run: npm run check:changelog
+
       - run: npm run lint
       - run: npm run format:check
       - run: npm run typecheck
