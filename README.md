@@ -1,12 +1,11 @@
 # @tenkicloud/agentbox-provider
 
-Run [AgentBox](https://agent-box.sh) coding agents in [Tenki](https://tenki.cloud) Firecracker
-microVMs — a community provider plugin, published as its own package and registered with
-`agentbox plugin add`.
+Run [AgentBox](https://agent-box.sh) coding agents in [Tenki](https://tenki.cloud) VMs — a community
+provider plugin, published as its own package and registered with `agentbox plugin add`.
 
 ## What Tenki is
 
-[Tenki](https://tenki.cloud) provisions Firecracker microVMs on demand, driven by the official
+[Tenki](https://tenki.cloud) provisions VMs on demand, driven by the official
 [`@tenkicloud/sandbox`](https://www.npmjs.com/package/@tenkicloud/sandbox) TypeScript SDK — a
 ConnectRPC control plane plus a per-session data plane for command execution and file transfer.
 Each AgentBox box becomes one Tenki session: a full VM with its own kernel, not a shared container.
@@ -15,7 +14,7 @@ Each AgentBox box becomes one Tenki session: a full VM with its own kernel, not 
 
 | Feature                   | What it means                                                                                              |
 | ------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **A VM per box**          | Every box is its own Firecracker microVM — real kernel isolation, not a shared container                   |
+| **A VM per box**          | Every box is its own VM — real kernel isolation, not a shared container                                    |
 | **Your project, ready**   | The workspace arrives as a git clone on a per-box branch, carrying your uncommitted and untracked changes  |
 | **Agents preinstalled**   | `claude`, `codex` and `opencode` are in the image; `agentbox tenki claude` drops you straight into one     |
 | **Your setup travels**    | Settings, MCP servers and plugins come from your host; credentials are seeded per box, never baked in      |
@@ -157,10 +156,10 @@ taken live — the source box keeps running.
   is the job. `agentbox plugin add` is the consent boundary; only add plugins you trust.
 - The Tenki token is read from the environment or `~/.agentbox/secrets.env` (`0600`), never logged,
   and never bundled into the published artifact.
-- Each box is an isolated microVM, so an agent cannot reach your host filesystem. Host-side
+- Each box is an isolated VM, so an agent cannot reach your host filesystem. Host-side
   operations that need your credentials (`git push` in particular) are brokered by the AgentBox host
   relay rather than by handing keys to the box.
-- **The microVM is the boundary, not the in-box user.** Inside a box the agent has passwordless
+- **The VM is the boundary, not the in-box user.** Inside a box the agent has passwordless
   `sudo` and Docker access, which is root-equivalent by design — in-box Docker requires it.
 - Interactive attach trusts the Tenki gateway's TLS rather than an SSH host key (the "host" is a
   session id, not a stable endpoint). If you override `TENKI_BASE_URL` or `TENKI_GATEWAY_ADDRESS`,

@@ -52,7 +52,7 @@ are in fact the documented design:
   carries no auth tokens.
 - **Inside a box, the agent is effectively root.** The box user has passwordless `sudo` and is in the
   `docker` group, which is root-equivalent by design — in-box Docker requires it. The security
-  boundary is the microVM, not the in-box user. An agent cannot reach your host filesystem, and host
+  boundary is the VM, not the in-box user. An agent cannot reach your host filesystem, and host
   operations needing your credentials (`git push`) are brokered by the AgentBox host relay.
 - **Interactive attach trusts the Tenki gateway's TLS rather than an SSH host key.** The SSH session
   runs over the gateway's authenticated WebSocket, and the "host" is a session id rather than a

@@ -212,7 +212,7 @@ export function buildInstallPlan(): PrepareStep[] {
       // tmux: the one hard dependency the base image lacks, and every
       // interactive attach runs inside a tmux session.
       //
-      // docker.io: in-box Docker. Verified working on a Tenki microVM — cgroup2,
+      // docker.io: in-box Docker. Verified working on a Tenki VM — cgroup2,
       // native overlay2 (not the slow vfs fallback), and the shared
       // `agentbox-dockerd-start` launcher brings the daemon up. Containers do
       // not need nested virtualization, so the absence of /dev/kvm is irrelevant.
