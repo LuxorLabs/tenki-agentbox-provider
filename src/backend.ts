@@ -1,6 +1,6 @@
 /**
  * Tenki `CloudBackend` — maps the provider-neutral cloud primitives onto the
- * `@tenkicloud/sandbox` SDK (Firecracker microVMs + pause/resume snapshots).
+ * `@tenkicloud/sandbox` SDK (VMs + pause/resume snapshots).
  * Composed into a full `Provider` by the provider SDK's `createCloudProvider`.
  *
  * Platform shape this backend is built around:
@@ -47,7 +47,7 @@ import { ensureTenkiBaseImage, readPreparedState } from './prepared-state.js';
 import { sshKeyDir } from './build-attach.js';
 
 /** In-box port the cloud WebProxy binds + that we expose as the box's "web" port.
- *  8080 matches the non-privileged convention vercel/e2b use for microVMs (the
+ *  8080 matches the non-privileged convention vercel/e2b use for VMs (the
  *  in-box ctl is told the same value via AGENTBOX_WEB_PROXY_PORT). */
 const TENKI_WEB_PORT = 8080;
 

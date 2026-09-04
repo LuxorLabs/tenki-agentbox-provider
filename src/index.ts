@@ -14,7 +14,7 @@
  *     boots from it (`createSnapshotAndWait` returns an id-addressed snapshot).
  *
  * `launchDockerd: true` — in-box Docker works on Tenki: verified on a live
- * microVM with cgroup2 and native overlay2 (not the vfs fallback), brought up by
+ * VM with cgroup2 and native overlay2 (not the vfs fallback), brought up by
  * the shared `agentbox-dockerd-start` launcher. Containers need no nested
  * virtualization, so the absence of /dev/kvm doesn't matter. The daemon is
  * started by the same idempotent bootstrap kick used on create and resume.

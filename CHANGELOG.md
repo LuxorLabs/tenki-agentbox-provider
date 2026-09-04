@@ -23,13 +23,13 @@ All ten were development dependencies. None was ever installed by a consumer of 
 
 ## 0.1.0 — 2026-07-31
 
-First public release: run AgentBox coding agents in Tenki Firecracker microVMs, as a community
-provider plugin registered with `agentbox plugin add`.
+First public release: run AgentBox coding agents in Tenki VMs, as a community provider plugin
+registered with `agentbox plugin add`.
 
 ### Added
 
 - **Full box lifecycle** over the `@tenkicloud/sandbox` SDK — create, exec, file transfer in both
-  directions, pause/resume, destroy. One Tenki session per box, each its own microVM.
+  directions, pause/resume, destroy. One Tenki session per box, each its own VM.
 - **`agentbox prepare --provider tenki`** — bakes a base snapshot from a throwaway builder sandbox
   (tmux, Docker, the AgentBox runtime, and `claude` / `codex` / `opencode`), then pins the snapshot id
   to `~/.agentbox/tenki-prepared.json` so later `create` calls boot in seconds. Re-bakes by itself if
