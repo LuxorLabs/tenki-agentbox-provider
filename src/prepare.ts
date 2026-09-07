@@ -37,18 +37,17 @@ import {
   statSync,
   symlinkSync,
 } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   readCliStamp,
   resolveSharedRuntimeAsset,
-  stageClaudeStaticForUpload,
-  stageCodexStaticForUpload,
-  stageOpencodeStaticForUpload,
+  stageAllAgentStatic,
   UserFacingError,
   type CloudHandle,
   type Provider,
   type StageResult,
+  type AgentStaticStage,
 } from '@madarco/agentbox-provider-sdk';
 import { tenkiBackend } from './backend.js';
 import { ensureTenkiCredentials } from './credentials.js';
@@ -132,8 +131,9 @@ export const PREPARE_ASSETS: readonly PrepareAsset[] = [
   { shared: 'agentbox-open', dest: '/usr/local/bin/agentbox-open', mode: '0755' },
   { shared: 'gh-shim', dest: '/usr/local/bin/gh', mode: '0755' },
   { shared: 'git-shim', dest: '/usr/local/bin/git', mode: '0755' },
-  { shared: 'ntn-shim', dest: '/usr/local/bin/ntn', mode: '0755' },
-  { shared: 'linear-shim', dest: '/usr/local/bin/linear', mode: '0755' },
+  // The notion/linear connectors were deleted upstream and replaced by one
+  // generic host-tool shim, symlinked per granted tool when the box starts.
+  { shared: 'agentbox-tool-shim', dest: '/usr/local/bin/agentbox-tool-shim', mode: '0755' },
   {
     shared: 'claude-managed-settings.json',
     dest: '/etc/claude-code/managed-settings.json',
@@ -473,56 +473,36 @@ async function bakeAgentStaticConfig(
   progress('staging host agent static config');
   const stagings: { kind: string; tar: StageResult; dest: string }[] = [];
 
-  /**
-   * Stage one agent, tolerating failure. These helpers shell out to `rsync` over
-   * the user's real home, so a single unreadable file makes rsync exit non-zero
-   * (23 = partial transfer) and throw. One awkward dotfile must not take the
-   * whole base image down with it.
-   */
-  const stageOne = async (
-    kind: string,
-    stage: () => Promise<StageResult>,
-    dest: string,
-  ): Promise<void> => {
-    let tar: StageResult;
-    try {
-      tar = await stage();
-    } catch (err) {
-      progress(
-        `WARNING: could not stage ${kind} config (${err instanceof Error ? err.message.split('\n')[0] : String(err)}) — continuing without it`,
-      );
-      return;
-    }
-    for (const w of tar.warnings) progress(w);
-    if (tar.tarballPath) stagings.push({ kind, tar, dest });
-    else await tar.cleanup();
-  };
-
   try {
-    await stageOne(
-      'claude',
-      () => stageClaudeStaticForUpload(hostWorkspace ? { hostWorkspace } : {}),
-      `${BOX_HOME}/.claude`,
-    );
-    // Codex goes through a sanitized shadow HOME; see shadowCodexHome.
-    const codexShadow = shadowCodexHome(homedir());
+    // One call per bake, not one per hardcoded agent. `stageAllAgentStatic`
+    // walks the host's agent registry, so an agent added after this provider
+    // shipped (pi, or anything from `agentbox agent add`) is baked in too --
+    // where naming three agents silently produced a snapshot missing it. It
+    // also owns the per-agent quirks that used to live here: claude's host-path
+    // hook filtering and codex's config.toml sanitizing, which is why the local
+    // shadow-HOME dance is gone.
+    //
+    // Still best-effort: these shell out to rsync over the user's real home, so
+    // one unreadable dotfile makes rsync exit 23 and throw. That must not take
+    // the whole base image down.
+    let stages: AgentStaticStage[] = [];
     try {
-      await stageOne(
-        'codex',
-        () =>
-          codexShadow
-            ? stageCodexStaticForUpload({ hostHome: codexShadow.home })
-            : stageCodexStaticForUpload(),
-        `${BOX_HOME}/.codex`,
-      );
-    } finally {
-      codexShadow?.cleanup();
+      stages = await stageAllAgentStatic(hostWorkspace ? { hostWorkspace } : {});
+    } catch (err) {
+      const detail = err instanceof Error ? err.message.split('\n')[0] : String(err);
+      progress(`WARNING: could not stage host agent config (${detail}) -- continuing without it`);
     }
-    await stageOne(
-      'opencode',
-      () => stageOpencodeStaticForUpload(),
-      `${BOX_HOME}/.local/share/opencode`,
-    );
+
+    for (const st of stages) {
+      for (const w of st.staged.warnings) progress(w);
+      // `extractDir` comes from the agent's own registry row, so the
+      // producer -> box-path mapping is no longer duplicated here.
+      if (st.staged.tarballPath) {
+        stagings.push({ kind: st.kind, tar: st.staged, dest: st.extractDir });
+      } else {
+        await st.staged.cleanup();
+      }
+    }
 
     if (stagings.length === 0) {
       progress('no host agent config to bake (boxes will start unconfigured)');

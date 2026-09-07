@@ -26,10 +26,13 @@ describe('PREPARE_ASSETS', () => {
     const dests = PREPARE_ASSETS.map((a) => a.dest);
     expect(dests).toContain('/usr/local/bin/agentbox-ctl');
     // The shims shadow the real binaries on PATH — that indirection is why a box
-    // needs no credentials of its own.
-    for (const shim of ['gh', 'git', 'ntn', 'linear']) {
+    // needs no credentials of its own. `ntn`/`linear` were per-connector shims;
+    // upstream replaced them with one generic host-tool shim that is symlinked
+    // per granted tool at box start, so there is no fixed path to assert.
+    for (const shim of ['gh', 'git']) {
       expect(dests).toContain(`/usr/local/bin/${shim}`);
     }
+    expect(dests).toContain('/usr/local/bin/agentbox-tool-shim');
   });
 
   it('marks executables 0755 and configs 0644', () => {
