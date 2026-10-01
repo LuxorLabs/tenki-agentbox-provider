@@ -522,7 +522,7 @@ export const tenkiBackend: CloudBackend = {
         attemptTimeoutMs: timeoutMs,
         backoffMs: opts?.noRetry ? [] : undefined,
       },
-      async () => {
+      async (signal) => {
         const session = await resolveSession(h);
         await ensureLive(session);
         // The scaffold hands us a ready-to-run shell command string (either a
@@ -530,15 +530,20 @@ export const tenkiBackend: CloudBackend = {
         // pipefail/heredocs/etc. behave uniformly. Tenki's `run` has no
         // per-exec user field — only `privileged`; map user==='root' to it and
         // otherwise rely on the base image's default user.
+        signal.throwIfAborted();
         const r = await session.run(['bash', '-c', cmd], {
+          timeoutMs,
+          signal,
           ...(opts?.cwd !== undefined ? { cwd: opts.cwd } : {}),
           ...(opts?.env !== undefined ? { env: opts.env } : {}),
           ...(opts?.user === 'root' ? { privileged: true } : {}),
         });
         return {
-          exitCode: r.exitCode,
+          exitCode: r.timedOut ? 124 : r.exitCode,
           stdout: decoder.decode(r.stdout),
-          stderr: decoder.decode(r.stderr),
+          stderr:
+            decoder.decode(r.stderr) +
+            (r.timedOut ? `\ntenki exec: command timed out after ${String(timeoutMs)}ms` : ''),
         };
       },
     );
