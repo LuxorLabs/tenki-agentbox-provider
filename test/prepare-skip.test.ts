@@ -74,17 +74,13 @@ async function runPrepare(args: {
   // present when running under the real CLI.
   vi.doMock('@madarco/agentbox-provider-sdk', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@madarco/agentbox-provider-sdk')>();
-    const noStage = () =>
-      Promise.resolve({ tarballPath: null, warnings: [], cleanup: () => Promise.resolve() });
     return {
       ...actual,
       resolveSharedRuntimeAsset: (name: string) => `/tmp/fake-asset-${name}`,
-      // The real helpers rsync the developer's actual ~/.claude, ~/.codex and
-      // ~/.config/opencode. A unit test must not read the host's home (nor be at
-      // the mercy of one unreadable file there), so stage nothing.
-      stageClaudeStaticForUpload: noStage,
-      stageCodexStaticForUpload: noStage,
-      stageOpencodeStaticForUpload: noStage,
+      // The real helper rsyncs the developer's actual agent config dirs. A unit
+      // test must not read the host's home (nor be at the mercy of one
+      // unreadable file there), so stage nothing.
+      stageAllAgentStatic: () => Promise.resolve([]),
     };
   });
 

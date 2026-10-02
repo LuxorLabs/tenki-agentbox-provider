@@ -30,7 +30,7 @@ Each AgentBox box becomes one Tenki session: a full VM with its own kernel, not 
 ## Requirements
 
 - Node.js 20 or newer
-- The `agentbox` CLI (0.27.1 or newer — it must support provider SDK v2)
+- The `agentbox` CLI (0.30.0 or newer — it must support provider SDK v4)
 - An OpenSSH client (`ssh` and `ssh-keygen`) on the host, used for interactive attach
 - A Tenki account with a workspace and an auth token
 
@@ -39,7 +39,7 @@ Each AgentBox box becomes one Tenki session: a full VM with its own kernel, not 
 ```bash
 npm i -g @tenkicloud/agentbox-provider
 agentbox plugin add @tenkicloud/agentbox-provider
-agentbox plugin list            # -> tenki … (SDK v2)
+agentbox plugin list            # -> tenki … (SDK v4)
 ```
 
 AgentBox does not know about `tenki` until `plugin add` records it. A plugin runs in-process with
@@ -97,11 +97,6 @@ plugin registries, and `/workspace` pre-trust — so boxes start with your own s
 blank one. It is best-effort: an agent whose config can't be read is skipped with a warning rather
 than failing the bake.
 
-One host-side wrinkle is handled for you: codex leaves a live Unix socket at `~/.codex/ipc/ipc.sock`
-whenever it has run, and the upstream staging helper's `rsync -a` cannot recreate a socket (it exits
-23). `prepare` stages codex through a sanitized shadow of that directory, so its config bakes whether
-or not codex is running.
-
 Credentials are handled separately, and deliberately not baked. AgentBox seeds them per box at
 create time into `~/.agentbox-creds/<agent>/`, which the base image pivots into place with symlinks
 (`~/.claude/.credentials.json`, `~/.codex/auth.json`, `~/.local/share/opencode/auth.json`). That
@@ -135,7 +130,7 @@ taken live — the source box keeps running.
 
 - **`unknown provider "tenki"`** — the plugin isn't registered. Run `agentbox plugin add
 @tenkicloud/agentbox-provider` and confirm with `agentbox plugin list`.
-- **`plugin targets provider SDK vN`** — your `agentbox` CLI is too old. Update to 0.27.1 or newer.
+- **`plugin targets provider SDK vN`** — your `agentbox` CLI is too old. Update to 0.30.0 or newer.
 - **Credentials not found** — check `agentbox doctor`. The token must be in the environment or in
   `~/.agentbox/secrets.env`, not a project `.env`.
 - **No base image** — run `agentbox prepare --provider tenki`. Boxes boot from a snapshot baked in

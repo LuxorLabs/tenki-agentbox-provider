@@ -1,6 +1,6 @@
 {
   "name": "@tenkicloud/agentbox-provider",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Tenki provider plugin for AgentBox — run coding agents in Tenki VMs",
   "license": "MIT",
   "author": "Luxor Labs",
@@ -40,7 +40,7 @@
     "node": ">=20"
   },
   "agentbox": {
-    "providerApiVersion": 2
+    "providerApiVersion": 4
   },
   "publishConfig": {
     "access": "public"
@@ -61,7 +61,7 @@
   },
   "dependencies": {
     "@clack/prompts": "^0.9.0",
-    "@madarco/agentbox-provider-sdk": "^2",
+    "@madarco/agentbox-provider-sdk": "^4",
     "@tenkicloud/sandbox": "^0.5.2"
   },
   "devDependencies": {
