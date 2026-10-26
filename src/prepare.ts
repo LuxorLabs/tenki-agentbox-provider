@@ -29,26 +29,13 @@
  */
 
 import {
-  lstatSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  rmSync,
-  statSync,
-  symlinkSync,
-} from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
-import { join } from 'node:path';
-import {
   readCliStamp,
   resolveSharedRuntimeAsset,
-  stageClaudeStaticForUpload,
-  stageCodexStaticForUpload,
-  stageOpencodeStaticForUpload,
+  stageAllAgentStatic,
   UserFacingError,
+  type AgentStaticStage,
   type CloudHandle,
   type Provider,
-  type StageResult,
 } from '@madarco/agentbox-provider-sdk';
 import { tenkiBackend } from './backend.js';
 import { ensureTenkiCredentials } from './credentials.js';
@@ -110,10 +97,12 @@ export interface PrepareAsset {
  * copies of these — resolving them from the CLI is what keeps the baked
  * `agentbox-ctl` version-locked to the host driving the box.
  *
- * The `gh` / `git` / `ntn` / `linear` entries are deliberately *shims*: they land
- * in `/usr/local/bin`, which precedes `/usr/bin` on PATH, so an agent running
+ * The `gh` / `git` entries are deliberately *shims*: they land in
+ * `/usr/local/bin`, which precedes `/usr/bin` on PATH, so an agent running
  * `git push` reaches the host relay (which holds the credentials) rather than the
  * real binary. That indirection is why a box needs no credentials of its own.
+ * Other granted host tools reach the relay through `agentbox-tool-shim`, which
+ * agentbox-ctl symlinks into `~/.local/bin` per tool at box start.
  */
 export const PREPARE_ASSETS: readonly PrepareAsset[] = [
   { shared: 'ctl.cjs', dest: '/usr/local/bin/agentbox-ctl', mode: '0755' },
@@ -132,8 +121,7 @@ export const PREPARE_ASSETS: readonly PrepareAsset[] = [
   { shared: 'agentbox-open', dest: '/usr/local/bin/agentbox-open', mode: '0755' },
   { shared: 'gh-shim', dest: '/usr/local/bin/gh', mode: '0755' },
   { shared: 'git-shim', dest: '/usr/local/bin/git', mode: '0755' },
-  { shared: 'ntn-shim', dest: '/usr/local/bin/ntn', mode: '0755' },
-  { shared: 'linear-shim', dest: '/usr/local/bin/linear', mode: '0755' },
+  { shared: 'agentbox-tool-shim', dest: '/usr/local/bin/agentbox-tool-shim', mode: '0755' },
   {
     shared: 'claude-managed-settings.json',
     dest: '/etc/claude-code/managed-settings.json',
@@ -147,6 +135,11 @@ export const PREPARE_ASSETS: readonly PrepareAsset[] = [
   {
     shared: 'agentbox-setup-skill.md',
     dest: '/usr/local/share/agentbox/setup-guide.md',
+    mode: '0644',
+  },
+  {
+    shared: 'agentbox-identity-skill.md',
+    dest: '/usr/local/share/agentbox/identity-skill.md',
     mode: '0644',
   },
   {
@@ -380,87 +373,26 @@ export interface PrepareTenkiResult {
 }
 
 /**
- * Build a throwaway HOME containing a *shadow* of `~/.codex`: real directories,
- * but every regular file replaced by a symlink to the original.
- *
- * Why: `stageCodexStaticForUpload` runs `rsync -aL` over `~/.codex`, and `-a`
- * implies `-D` (recreate devices and specials). Codex leaves a live Unix socket
- * at `~/.codex/ipc/ipc.sock` whenever it has run, which rsync cannot recreate —
- * it exits 23 ("partial transfer due to error") and the whole staging throws. The
- * upstream exclude list doesn't filter specials, so the built-in vercel and e2b
- * providers fail their entire `prepare` on such a host.
- *
- * The shadow skips anything that isn't a directory or regular file, so the socket
- * simply isn't there to trip over. Symlinks (rather than copies) mean no user data
- * is duplicated on disk — `rsync -L` reads through them to the originals. We also
- * omit `auth.json`: the helper excludes it from the tarball anyway, and this way
- * the token never lands in a temp directory at all.
- *
- * Returns null when there is no `~/.codex` to shadow — the caller then stages
- * normally and the helper reports "nothing to stage".
+ * Map an SDK `extractDir` onto the box user's home. The SDK's agent specs name
+ * `/home/vscode`; that is a symlink to `BOX_HOME` here, but extracting through
+ * the real path keeps the bake independent of the link.
  */
-export function shadowCodexHome(hostHome: string): { home: string; cleanup: () => void } | null {
-  const source = join(hostHome, '.codex');
-  try {
-    if (!lstatSync(source).isDirectory()) return null;
-  } catch {
-    return null;
-  }
-
-  const root = mkdtempSync(join(tmpdir(), 'agentbox-tenki-codex-shadow-'));
-  const mirror = (from: string, to: string, depth: number): void => {
-    // Depth cap purely as a loop guard: a symlinked directory cycle would
-    // otherwise recurse forever.
-    if (depth > 12) return;
-    mkdirSync(to, { recursive: true });
-    for (const entry of readdirSync(from, { withFileTypes: true })) {
-      // Never let the credential file into the temp tree.
-      if (entry.name === 'auth.json') continue;
-      const src = join(from, entry.name);
-      const dest = join(to, entry.name);
-      let stat;
-      try {
-        // statSync FOLLOWS symlinks, which is what we want: a symlinked config
-        // directory gets recursed into (so a socket nested under it is still
-        // dropped), a symlinked file gets shadowed, and a dangling link throws
-        // here and is skipped.
-        stat = statSync(src);
-      } catch {
-        continue;
-      }
-      if (stat.isDirectory()) {
-        mirror(src, dest, depth + 1);
-      } else if (stat.isFile()) {
-        try {
-          symlinkSync(src, dest);
-        } catch {
-          // A name collision or unsupported target is not worth failing over.
-        }
-      }
-      // Sockets, FIFOs and devices are deliberately dropped — see above.
-    }
-  };
-
-  try {
-    mirror(source, join(root, '.codex'), 0);
-  } catch {
-    rmSync(root, { recursive: true, force: true });
-    return null;
-  }
-  return { home: root, cleanup: () => rmSync(root, { recursive: true, force: true }) };
+export function boxExtractDir(extractDir: string): string {
+  return extractDir.replace(/^\/home\/vscode(?=\/|$)/, BOX_HOME);
 }
 
 /**
  * Bake the host's STATIC agent config into the snapshot — settings, MCP servers,
- * plugin registries, history, and `/workspace` pre-trust — so a box starts with
- * the user's own setup instead of a blank one. This is what the built-in vercel
- * and e2b providers do at bake time, via the same three SDK helpers.
+ * plugin registries and the shared `~/.agents` skills tree — so a box starts
+ * with the user's own setup instead of a blank one. `stageAllAgentStatic` is the
+ * same registry-driven call the built-in cloud providers use, so every agent the
+ * host knows about is staged, not a fixed list.
  *
- * Note what these deliberately do NOT carry: `stageClaudeStaticForUpload`
- * excludes `.credentials.json` and the opencode variant excludes `auth.json`.
- * Credentials are seeded per-box at CREATE time by the cloud scaffold (into the
- * `~/.agentbox-creds/<agent>/` layout the `agent-dirs` step bakes), which keeps
- * auth tokens out of a snapshot that may be shared or long-lived.
+ * Credentials are deliberately NOT carried: the SDK excludes each agent's
+ * credential file from a snapshot stage. They are seeded per-box at CREATE time
+ * by the cloud scaffold (into the `~/.agentbox-creds/<agent>/` layout the
+ * `agent-dirs` step bakes), which keeps auth tokens out of a snapshot that may
+ * be shared or long-lived.
  *
  * Best-effort by design: a user with no host agent config, or one whose tarball
  * fails to extract, should still get a working base image.
@@ -471,75 +403,38 @@ async function bakeAgentStaticConfig(
   progress: (s: string) => void,
 ): Promise<void> {
   progress('staging host agent static config');
-  const stagings: { kind: string; tar: StageResult; dest: string }[] = [];
-
-  /**
-   * Stage one agent, tolerating failure. These helpers shell out to `rsync` over
-   * the user's real home, so a single unreadable file makes rsync exit non-zero
-   * (23 = partial transfer) and throw. One awkward dotfile must not take the
-   * whole base image down with it.
-   */
-  const stageOne = async (
-    kind: string,
-    stage: () => Promise<StageResult>,
-    dest: string,
-  ): Promise<void> => {
-    let tar: StageResult;
-    try {
-      tar = await stage();
-    } catch (err) {
-      progress(
-        `WARNING: could not stage ${kind} config (${err instanceof Error ? err.message.split('\n')[0] : String(err)}) — continuing without it`,
-      );
-      return;
-    }
-    for (const w of tar.warnings) progress(w);
-    if (tar.tarballPath) stagings.push({ kind, tar, dest });
-    else await tar.cleanup();
-  };
+  let stages: AgentStaticStage[];
+  try {
+    // Shells out to `rsync` over the user's real home, so one unreadable file
+    // throws. That must not take the whole base image down with it.
+    stages = await stageAllAgentStatic(hostWorkspace ? { hostWorkspace } : {});
+  } catch (err) {
+    progress(
+      `WARNING: could not stage host agent config (${err instanceof Error ? err.message.split('\n')[0] : String(err)}) — continuing without it`,
+    );
+    return;
+  }
 
   try {
-    await stageOne(
-      'claude',
-      () => stageClaudeStaticForUpload(hostWorkspace ? { hostWorkspace } : {}),
-      `${BOX_HOME}/.claude`,
-    );
-    // Codex goes through a sanitized shadow HOME; see shadowCodexHome.
-    const codexShadow = shadowCodexHome(homedir());
-    try {
-      await stageOne(
-        'codex',
-        () =>
-          codexShadow
-            ? stageCodexStaticForUpload({ hostHome: codexShadow.home })
-            : stageCodexStaticForUpload(),
-        `${BOX_HOME}/.codex`,
-      );
-    } finally {
-      codexShadow?.cleanup();
-    }
-    await stageOne(
-      'opencode',
-      () => stageOpencodeStaticForUpload(),
-      `${BOX_HOME}/.local/share/opencode`,
-    );
-
-    if (stagings.length === 0) {
+    for (const st of stages) for (const w of st.staged.warnings) progress(w);
+    const usable = stages.filter((st) => st.staged.tarballPath !== null);
+    if (usable.length === 0) {
       progress('no host agent config to bake (boxes will start unconfigured)');
       return;
     }
 
-    for (const st of stagings) {
+    for (const st of usable) {
       const remote = `/tmp/agentbox-${st.kind}-static.tar.gz`;
+      const dest = boxExtractDir(st.extractDir);
       progress(`baking ${st.kind} static config`);
       try {
-        await tenkiBackend.uploadFile(handle, st.tar.tarballPath as string, remote);
+        await tenkiBackend.uploadFile(handle, st.staged.tarballPath as string, remote);
         // Extract as the box user (no `root`) so files end up owned by it.
         // --no-same-owner/-permissions because the tarball carries host uids.
         const extract = [
           'set -euo pipefail',
-          `mkdir -p "${st.dest}"`,
-          `tar -xzf "${remote}" -C "${st.dest}" --no-same-permissions --no-same-owner -m`,
+          `mkdir -p "${dest}"`,
+          `tar -xzf "${remote}" -C "${dest}" --no-same-permissions --no-same-owner -m`,
           `rm -f "${remote}"`,
         ].join('\n');
         const r = await tenkiBackend.exec(handle, extract, { attemptTimeoutMs: 300_000 });
@@ -557,7 +452,7 @@ async function bakeAgentStaticConfig(
       }
     }
   } finally {
-    for (const st of stagings) await st.tar.cleanup();
+    for (const st of stages) await st.staged.cleanup();
   }
 }
 

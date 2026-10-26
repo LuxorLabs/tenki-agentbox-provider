@@ -214,7 +214,7 @@ export {
   prepareTenki,
   prepareTenkiProvider,
   buildInstallPlan,
-  shadowCodexHome,
+  boxExtractDir,
   stagedAssetPath,
   PREPARE_ASSETS,
   type PrepareAsset,
