@@ -12,7 +12,7 @@ import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 import { hostOpenCommand } from '@madarco/agentbox-provider-sdk';
 import { cancel, confirm, intro, isCancel, log, note, outro, password } from '@clack/prompts';
-import { ensureTenkiEnvLoaded, reloadTenkiEnv } from './env-loader.js';
+import { ensureTenkiEnvLoaded, readTenkiAuthToken, reloadTenkiEnv } from './env-loader.js';
 import { hasUsableCredentials } from './sdk.js';
 import { writeManagedSecrets, type CredSetResult } from './secrets.js';
 
@@ -122,9 +122,9 @@ export interface TenkiCredStatus {
 }
 
 export function readTenkiCredStatus(): TenkiCredStatus {
-  const shellHad = process.env.TENKI_AUTH_TOKEN !== undefined;
+  const shellHad = readTenkiAuthToken() !== undefined;
   ensureTenkiEnvLoaded();
-  const token = process.env.TENKI_AUTH_TOKEN;
+  const token = readTenkiAuthToken();
   if (!token) return { auth: 'none', source: 'none' };
   return { auth: 'token', token, source: shellHad ? 'env' : 'secrets.env' };
 }

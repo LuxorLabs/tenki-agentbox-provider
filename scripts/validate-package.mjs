@@ -125,6 +125,13 @@ try {
       for (const member of REQUIRED_PROVIDER_MEMBERS) {
         if (pm.provider?.[member] === undefined) failures.push(`provider.${member} is missing`);
       }
+      // The CLI prefers `providerModules` over `providerModule`, so tenki must stay in it.
+      const names = (mod.providerModules ?? []).map((m) => m.provider?.name);
+      if (JSON.stringify(names) !== JSON.stringify([PROVIDER_NAME, 'luxor'])) {
+        failures.push(
+          `providerModules names are ${JSON.stringify(names)}, expected ["tenki","luxor"]`,
+        );
+      }
     }
   }
 } catch (err) {

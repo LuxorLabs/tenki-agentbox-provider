@@ -56,7 +56,8 @@ export TENKI_AUTH_TOKEN=...          # or add TENKI_AUTH_TOKEN=… to ~/.agentbo
 agentbox doctor                      # shows the `tenki:` group
 ```
 
-`TENKI_API_TOKEN` is accepted as an alias. Credentials are read from the environment first, then
+`TENKI_API_TOKEN` is accepted as an alias, and each `TENKI_*` variable has a `LUXORAI_*` equivalent
+(for example `LUXORAI_AUTH_TOKEN`) that is read first. `--provider luxor` is an alias of `--provider tenki`. Credentials are read from the environment first, then
 from `~/.agentbox/secrets.env` (mode `0600`); project `.env` files are never harvested. The token is
 never logged and never included in the published package.
 

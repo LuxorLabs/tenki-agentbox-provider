@@ -4,6 +4,18 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- `LUXORAI_AUTH_TOKEN`, `LUXORAI_API_TOKEN`, `LUXORAI_BASE_URL` and `LUXORAI_GATEWAY_ADDRESS` are read
+  (from the environment or `~/.agentbox/secrets.env`) before their `TENKI_*` equivalents, and
+  `AGENTBOX_LUXORAI_*` before `AGENTBOX_TENKI_*`. The `TENKI_*` names keep working.
+- A `luxor` provider alias (`agentbox create --provider luxor`) backed by the same provider, backend
+  and prepared base as `tenki`. Re-run `agentbox plugin add` to register it.
+- Release workflow can also publish the same tarball as `@luxorai/agentbox-provider` once the
+  `LUXORAI_PUBLISH` repository variable is enabled.
+
 ## 0.1.1 — 2026-07-31
 
 Development-toolchain maintenance. **The published artifact is unchanged** — same `dist/`, same

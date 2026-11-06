@@ -5,7 +5,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { PROVIDER_NAME, providerModule, SDK_API_VERSION } from '../src/index.js';
+import {
+  LUXOR_PROVIDER_NAME,
+  PROVIDER_NAME,
+  providerModule,
+  providerModules,
+  SDK_API_VERSION,
+} from '../src/index.js';
 import manifest from '../package.json' with { type: 'json' };
 
 describe('providerModule', () => {
@@ -16,6 +22,15 @@ describe('providerModule', () => {
     expect(PROVIDER_NAME).toBe('tenki');
     expect(providerModule.provider.name).toBe('tenki');
     expect(providerModule.backend?.name).toBe('tenki');
+  });
+
+  it('registers luxor as an alias of tenki with the same backend', () => {
+    // The CLI reads `providerModules` first, so tenki must stay in the list.
+    expect(providerModules.map((m) => m.provider.name)).toEqual(['tenki', 'luxor']);
+    const luxor = providerModules.find((m) => m.provider.name === LUXOR_PROVIDER_NAME)!;
+    expect(luxor.backend).toBe(providerModule.backend);
+    expect(luxor.provider.create).toBe(providerModule.provider.create);
+    expect(luxor.doctorChecks).toBe(providerModule.doctorChecks);
   });
 
   it('declares an API version matching the SDK it is built against', () => {

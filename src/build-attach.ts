@@ -46,6 +46,7 @@ import {
   type BuildAttachOptions,
 } from '@madarco/agentbox-provider-sdk';
 import { getTenkiClient, resolveAuthToken } from './sdk.js';
+import { readAgentboxEnv, readTenkiEnv } from './env-loader.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -56,7 +57,7 @@ const SELF = dirname(fileURLToPath(import.meta.url));
  * certificate's principals are issued for the session — override only if a
  * custom base image uses a different account.
  */
-const SSH_USER = process.env.AGENTBOX_TENKI_SSH_USER?.trim() || 'tenki';
+const SSH_USER = readAgentboxEnv('SSH_USER') || 'tenki';
 
 /** Certificate lifetime. Short by design: a new one is minted per attach. */
 const CERT_TTL_MS = 60 * 60_000;
@@ -165,9 +166,11 @@ export async function buildTenkiAttach(
     // `ssh -t` propagates the local TERM to the remote PTY.
     TERM: hostTerm,
   };
-  if (process.env.TENKI_BASE_URL) env.TENKI_BASE_URL = process.env.TENKI_BASE_URL;
-  if (process.env.TENKI_GATEWAY_ADDRESS)
-    env.TENKI_GATEWAY_ADDRESS = process.env.TENKI_GATEWAY_ADDRESS;
+  // The helper reads the TENKI_* names; LUXORAI_* values are resolved here.
+  const baseUrl = readTenkiEnv('BASE_URL');
+  if (baseUrl) env.TENKI_BASE_URL = baseUrl;
+  const gatewayAddress = readTenkiEnv('GATEWAY_ADDRESS');
+  if (gatewayAddress) env.TENKI_GATEWAY_ADDRESS = gatewayAddress;
 
   // Detached pre-start: only CREATE the tmux session (renderInnerCommand with
   // `detached:true` emits no trailing `exec tmux attach`). That is a plain
