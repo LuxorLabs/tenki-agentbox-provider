@@ -46,7 +46,7 @@ import {
   type BuildAttachOptions,
 } from '@madarco/agentbox-provider-sdk';
 import { getTenkiClient, resolveAuthToken } from './sdk.js';
-import { readAgentboxEnv, readTenkiEnv } from './env-loader.js';
+import { readAgentboxEnv, readTenkiBaseUrl, readTenkiGatewayAddress } from './env-loader.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -166,10 +166,10 @@ export async function buildTenkiAttach(
     // `ssh -t` propagates the local TERM to the remote PTY.
     TERM: hostTerm,
   };
-  // The helper reads the TENKI_* names; LUXORAI_* values are resolved here.
-  const baseUrl = readTenkiEnv('BASE_URL');
+  // The helper reads the TENKI_* names; every alias is resolved here.
+  const baseUrl = readTenkiBaseUrl();
   if (baseUrl) env.TENKI_BASE_URL = baseUrl;
-  const gatewayAddress = readTenkiEnv('GATEWAY_ADDRESS');
+  const gatewayAddress = readTenkiGatewayAddress();
   if (gatewayAddress) env.TENKI_GATEWAY_ADDRESS = gatewayAddress;
 
   // Detached pre-start: only CREATE the tmux session (renderInnerCommand with

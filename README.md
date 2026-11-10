@@ -57,7 +57,9 @@ agentbox doctor                      # shows the `tenki:` group
 ```
 
 `TENKI_API_KEY` and `TENKI_API_TOKEN` are accepted as aliases, and each `TENKI_*` variable has a `LUXORAI_*` equivalent
-(for example `LUXORAI_AUTH_TOKEN`) that is read first. `--provider luxor` is an alias of `--provider tenki`. Credentials are read from the environment first, then
+(for example `LUXORAI_AUTH_TOKEN`) that is read first. To point at another control plane, set
+`TENKI_API_URL` (or `TENKI_API_ENDPOINT`) and `TENKI_SANDBOX_GATEWAY_URL`, the names the Tenki SDK
+reads; `TENKI_BASE_URL` and `TENKI_GATEWAY_ADDRESS` still work. `--provider luxor` is an alias of `--provider tenki`. Credentials are read from the environment first, then
 from `~/.agentbox/secrets.env` (mode `0600`); project `.env` files are never harvested. The token is
 never logged and never included in the published package.
 
@@ -158,7 +160,7 @@ taken live — the source box keeps running.
 - **The VM is the boundary, not the in-box user.** Inside a box the agent has passwordless
   `sudo` and Docker access, which is root-equivalent by design — in-box Docker requires it.
 - Interactive attach trusts the Tenki gateway's TLS rather than an SSH host key (the "host" is a
-  session id, not a stable endpoint). If you override `TENKI_BASE_URL` or `TENKI_GATEWAY_ADDRESS`,
+  session id, not a stable endpoint). If you override the API URL or the gateway URL,
   point them only at endpoints you trust.
 - Preview URLs are public: anyone holding one can reach the port, with no token. Use the signed
   (expiring) variant for anything that should not stay durably reachable.

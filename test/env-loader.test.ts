@@ -86,8 +86,16 @@ describe('LUXORAI_* env precedence', () => {
     'TENKI_AUTH_TOKEN',
     'TENKI_API_KEY',
     'TENKI_API_TOKEN',
+    'LUXORAI_API_ENDPOINT',
+    'LUXORAI_API_URL',
     'LUXORAI_BASE_URL',
+    'TENKI_API_ENDPOINT',
+    'TENKI_API_URL',
     'TENKI_BASE_URL',
+    'LUXORAI_SANDBOX_GATEWAY_URL',
+    'LUXORAI_GATEWAY_ADDRESS',
+    'TENKI_SANDBOX_GATEWAY_URL',
+    'TENKI_GATEWAY_ADDRESS',
     'AGENTBOX_LUXORAI_TIMEOUT_MS',
     'AGENTBOX_TENKI_TIMEOUT_MS',
   ];
@@ -150,6 +158,30 @@ describe('LUXORAI_* env precedence', () => {
     expect(readTenkiAuthToken()).toBeUndefined();
     process.env.LUXORAI_BASE_URL = 'https://api.luxor.test';
     expect(readTenkiEnv('BASE_URL')).toBe('https://api.luxor.test');
+  });
+
+  it('resolves the API URL from the SDK names before the legacy BASE_URL', async () => {
+    const { readTenkiBaseUrl } = await import('../src/env-loader.js');
+    process.env.LUXORAI_BASE_URL = 'https://legacy.luxor.test';
+    expect(readTenkiBaseUrl()).toBe('https://legacy.luxor.test');
+    process.env.TENKI_API_URL = 'https://url.tenki.test';
+    expect(readTenkiBaseUrl()).toBe('https://legacy.luxor.test');
+    process.env.LUXORAI_API_URL = 'https://url.luxor.test';
+    expect(readTenkiBaseUrl()).toBe('https://url.luxor.test');
+    process.env.LUXORAI_API_ENDPOINT = 'https://endpoint.luxor.test';
+    expect(readTenkiBaseUrl()).toBe('https://endpoint.luxor.test');
+  });
+
+  it('resolves the gateway from SANDBOX_GATEWAY_URL before the legacy GATEWAY_ADDRESS', async () => {
+    const { readTenkiGatewayAddress } = await import('../src/env-loader.js');
+    process.env.TENKI_GATEWAY_ADDRESS = 'gw.tenki.test:443';
+    expect(readTenkiGatewayAddress()).toBe('gw.tenki.test:443');
+    process.env.TENKI_SANDBOX_GATEWAY_URL = 'https://gw-sdk.tenki.test';
+    expect(readTenkiGatewayAddress()).toBe('https://gw-sdk.tenki.test');
+    process.env.LUXORAI_GATEWAY_ADDRESS = 'gw.luxor.test:443';
+    expect(readTenkiGatewayAddress()).toBe('gw.luxor.test:443');
+    process.env.LUXORAI_SANDBOX_GATEWAY_URL = 'https://gw-sdk.luxor.test';
+    expect(readTenkiGatewayAddress()).toBe('https://gw-sdk.luxor.test');
   });
 
   it('reads AGENTBOX_LUXORAI_* before AGENTBOX_TENKI_*', async () => {
