@@ -94,9 +94,9 @@ The baked base snapshot id lives in `~/.agentbox/tenki-prepared.json`, managed b
 ## Agent configuration and credentials
 
 `prepare` bakes your host's **static** agent config into the base snapshot — settings, MCP servers,
-plugin registries, and `/workspace` pre-trust — so boxes start with your own setup rather than a
-blank one. It is best-effort: an agent whose config can't be read is skipped with a warning rather
-than failing the bake.
+plugin registries, `/workspace` pre-trust, and the shared `~/.agents` skills tree — for every agent
+on the host, so boxes start with your own setup rather than a blank one. It is best-effort: an agent
+whose config can't be read is skipped with a warning rather than failing the bake.
 
 Credentials are handled separately, and deliberately not baked. AgentBox seeds them per box at
 create time into `~/.agentbox-creds/<agent>/`, which the base image pivots into place with symlinks

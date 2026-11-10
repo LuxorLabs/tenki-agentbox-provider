@@ -29,6 +29,7 @@
  */
 
 import {
+  errSummary,
   readCliStamp,
   resolveSharedRuntimeAsset,
   stageAllAgentStatic,
@@ -356,6 +357,8 @@ export function buildInstallPlan(): PrepareStep[] {
 export interface PrepareTenkiOptions {
   name?: string;
   hostWorkspace?: string;
+  /** Host agent ids, used to stage one agent at a time when staging them together fails. */
+  agentIds?: readonly string[];
   /** Rebake even when a base snapshot is already recorded. */
   force?: boolean;
   /** Tenki base-image id the builder boots from (default: the workspace default). */
@@ -383,6 +386,57 @@ export function boxExtractDir(extractDir: string): string {
 }
 
 /**
+ * Stage every host agent's static config, isolating failures per agent.
+ *
+ * `stageAllAgentStatic` stages all agents under one `Promise.all` and shells out
+ * to `rsync` over the user's real home, so one unreadable file in one agent's
+ * config rejects the whole call. When that happens, retry one agent at a time
+ * so only the agent that fails is skipped. The SDK appends the shared
+ * `~/.agents` stage to every call, so the retries keep only the first copy.
+ */
+export async function stageHostAgentStatic(
+  hostWorkspace: string | undefined,
+  agentIds: readonly string[],
+  progress: (s: string) => void,
+): Promise<AgentStaticStage[]> {
+  const base = hostWorkspace ? { hostWorkspace } : {};
+  try {
+    return await stageAllAgentStatic(base);
+  } catch (err) {
+    if (agentIds.length === 0) {
+      progress(
+        `WARNING: could not stage host agent config (${errSummary(err)}) — continuing without it`,
+      );
+      return [];
+    }
+    progress(
+      `WARNING: could not stage host agent config (${errSummary(err)}) — retrying one agent at a time`,
+    );
+  }
+
+  const stages: AgentStaticStage[] = [];
+  for (const id of agentIds) {
+    let staged: AgentStaticStage[];
+    try {
+      staged = await stageAllAgentStatic({ ...base, agents: [id] });
+    } catch (err) {
+      progress(
+        `WARNING: could not stage ${id} config (${errSummary(err)}) — continuing without it`,
+      );
+      continue;
+    }
+    for (const st of staged) {
+      if (st.kind === 'agents' && stages.some((s) => s.kind === 'agents')) {
+        await st.staged.cleanup();
+      } else {
+        stages.push(st);
+      }
+    }
+  }
+  return stages;
+}
+
+/**
  * Bake the host's STATIC agent config into the snapshot — settings, MCP servers,
  * plugin registries and the shared `~/.agents` skills tree — so a box starts
  * with the user's own setup instead of a blank one. `stageAllAgentStatic` is the
@@ -401,20 +455,11 @@ export function boxExtractDir(extractDir: string): string {
 async function bakeAgentStaticConfig(
   handle: CloudHandle,
   hostWorkspace: string | undefined,
+  agentIds: readonly string[],
   progress: (s: string) => void,
 ): Promise<void> {
   progress('staging host agent static config');
-  let stages: AgentStaticStage[];
-  try {
-    // Shells out to `rsync` over the user's real home, so one unreadable file
-    // throws. That must not take the whole base image down with it.
-    stages = await stageAllAgentStatic(hostWorkspace ? { hostWorkspace } : {});
-  } catch (err) {
-    progress(
-      `WARNING: could not stage host agent config (${err instanceof Error ? err.message.split('\n')[0] : String(err)}) — continuing without it`,
-    );
-    return;
-  }
+  const stages = await stageHostAgentStatic(hostWorkspace, agentIds, progress);
 
   try {
     for (const st of stages) for (const w of st.staged.warnings) progress(w);
@@ -561,7 +606,7 @@ export async function prepareTenki(opts: PrepareTenkiOptions = {}): Promise<Prep
       }
     }
 
-    await bakeAgentStaticConfig(handle, opts.hostWorkspace, progress);
+    await bakeAgentStaticConfig(handle, opts.hostWorkspace, opts.agentIds ?? [], progress);
 
     progress('snapshotting the builder (this takes a minute)');
     const label = snapshotLabel();
@@ -603,6 +648,8 @@ export const prepareTenkiProvider: NonNullable<Provider['prepare']> = (req) =>
   prepareTenki({
     name: req.name,
     hostWorkspace: req.hostWorkspace ?? process.cwd(),
+    // The CLI keys this by every agent id it knows; the plugin's own registry is empty.
+    agentIds: Object.keys(req.agentSettings ?? {}),
     force: req.force,
     // `--size` sizes the BOX at create time (the backend applies cpu/memory/disk
     // per session), so it deliberately does not size the builder here.
