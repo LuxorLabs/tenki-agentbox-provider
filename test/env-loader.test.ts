@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseEnvFile } from '../src/env-loader.js';
 
@@ -127,5 +130,23 @@ describe('LUXORAI_* env precedence', () => {
     expect(readAgentboxEnv('TIMEOUT_MS')).toBe('1000');
     process.env.AGENTBOX_LUXORAI_TIMEOUT_MS = '2000';
     expect(readAgentboxEnv('TIMEOUT_MS')).toBe('2000');
+  });
+
+  it('drops a stale LUXORAI_* token when new credentials are saved', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'tenki-env-'));
+    try {
+      process.env.HOME = home;
+      mkdirSync(join(home, '.agentbox'));
+      writeFileSync(join(home, '.agentbox', 'secrets.env'), 'LUXORAI_AUTH_TOKEN=lx_old\n');
+      const { ensureTenkiEnvLoaded, readTenkiAuthToken } = await import('../src/env-loader.js');
+      const { setTenkiCredentials } = await import('../src/credentials.js');
+      ensureTenkiEnvLoaded();
+      expect(readTenkiAuthToken()).toBe('lx_old');
+      expect(setTenkiCredentials({ token: 'tk_new' }).ok).toBe(true);
+      expect(readTenkiAuthToken()).toBe('tk_new');
+      expect(readFileSync(join(home, '.agentbox', 'secrets.env'), 'utf8')).not.toContain('lx_old');
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
   });
 });

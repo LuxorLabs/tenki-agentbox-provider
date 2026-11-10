@@ -32,8 +32,9 @@ const DOCS_URL = 'https://tenki.cloud/docs';
 /**
  * Keys we manage in `~/.agentbox/secrets.env`. On reconfigure we strip prior
  * values for these before appending so the file never accumulates duplicates.
+ * The LUXORAI_* tokens are cleared too, since they would shadow the new value.
  */
-const MANAGED_KEYS = ['TENKI_AUTH_TOKEN'] as const;
+const MANAGED_KEYS = ['TENKI_AUTH_TOKEN', 'LUXORAI_AUTH_TOKEN', 'LUXORAI_API_TOKEN'] as const;
 
 export interface EnsureTenkiCredentialsOptions {
   /** Re-prompt even when valid credentials are already present. */
