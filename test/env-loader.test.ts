@@ -81,11 +81,21 @@ describe('ensureTenkiEnvLoaded token alias', () => {
 describe('LUXORAI_* env precedence', () => {
   const KEYS = [
     'LUXORAI_AUTH_TOKEN',
+    'LUXORAI_API_KEY',
     'LUXORAI_API_TOKEN',
     'TENKI_AUTH_TOKEN',
+    'TENKI_API_KEY',
     'TENKI_API_TOKEN',
+    'LUXORAI_API_ENDPOINT',
+    'LUXORAI_API_URL',
     'LUXORAI_BASE_URL',
+    'TENKI_API_ENDPOINT',
+    'TENKI_API_URL',
     'TENKI_BASE_URL',
+    'LUXORAI_SANDBOX_GATEWAY_URL',
+    'LUXORAI_GATEWAY_ADDRESS',
+    'TENKI_SANDBOX_GATEWAY_URL',
+    'TENKI_GATEWAY_ADDRESS',
     'AGENTBOX_LUXORAI_TIMEOUT_MS',
     'AGENTBOX_TENKI_TIMEOUT_MS',
   ];
@@ -115,6 +125,32 @@ describe('LUXORAI_* env precedence', () => {
     expect(readTenkiAuthToken()).toBe('lx_primary');
   });
 
+  it('reads the SDK API_KEY names, after AUTH_TOKEN and before API_TOKEN', async () => {
+    process.env.TENKI_API_TOKEN = 'tk_alias';
+    const { readTenkiAuthToken } = await import('../src/env-loader.js');
+    process.env.TENKI_API_KEY = 'tk_key';
+    expect(readTenkiAuthToken()).toBe('tk_key');
+    process.env.TENKI_AUTH_TOKEN = 'tk_auth';
+    expect(readTenkiAuthToken()).toBe('tk_auth');
+    process.env.LUXORAI_API_TOKEN = 'lx_alias';
+    process.env.LUXORAI_API_KEY = 'lx_key';
+    expect(readTenkiAuthToken()).toBe('lx_key');
+  });
+
+  it('loads LUXORAI_API_KEY from ~/.agentbox/secrets.env', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'tenki-env-'));
+    try {
+      process.env.HOME = home;
+      mkdirSync(join(home, '.agentbox'));
+      writeFileSync(join(home, '.agentbox', 'secrets.env'), 'LUXORAI_API_KEY=lx_file\n');
+      const { ensureTenkiEnvLoaded, readTenkiAuthToken } = await import('../src/env-loader.js');
+      ensureTenkiEnvLoaded();
+      expect(readTenkiAuthToken()).toBe('lx_file');
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
   it('falls back to TENKI_* when no LUXORAI_* value is set', async () => {
     process.env.TENKI_BASE_URL = 'https://api.tenki.test';
     const { readTenkiEnv, readTenkiAuthToken } = await import('../src/env-loader.js');
@@ -122,6 +158,30 @@ describe('LUXORAI_* env precedence', () => {
     expect(readTenkiAuthToken()).toBeUndefined();
     process.env.LUXORAI_BASE_URL = 'https://api.luxor.test';
     expect(readTenkiEnv('BASE_URL')).toBe('https://api.luxor.test');
+  });
+
+  it('resolves the API URL from the SDK names before the legacy BASE_URL', async () => {
+    const { readTenkiBaseUrl } = await import('../src/env-loader.js');
+    process.env.LUXORAI_BASE_URL = 'https://legacy.luxor.test';
+    expect(readTenkiBaseUrl()).toBe('https://legacy.luxor.test');
+    process.env.TENKI_API_URL = 'https://url.tenki.test';
+    expect(readTenkiBaseUrl()).toBe('https://legacy.luxor.test');
+    process.env.LUXORAI_API_URL = 'https://url.luxor.test';
+    expect(readTenkiBaseUrl()).toBe('https://url.luxor.test');
+    process.env.LUXORAI_API_ENDPOINT = 'https://endpoint.luxor.test';
+    expect(readTenkiBaseUrl()).toBe('https://endpoint.luxor.test');
+  });
+
+  it('resolves the gateway from SANDBOX_GATEWAY_URL before the legacy GATEWAY_ADDRESS', async () => {
+    const { readTenkiGatewayAddress } = await import('../src/env-loader.js');
+    process.env.TENKI_GATEWAY_ADDRESS = 'gw.tenki.test:443';
+    expect(readTenkiGatewayAddress()).toBe('gw.tenki.test:443');
+    process.env.TENKI_SANDBOX_GATEWAY_URL = 'https://gw-sdk.tenki.test';
+    expect(readTenkiGatewayAddress()).toBe('https://gw-sdk.tenki.test');
+    process.env.LUXORAI_GATEWAY_ADDRESS = 'gw.luxor.test:443';
+    expect(readTenkiGatewayAddress()).toBe('gw.luxor.test:443');
+    process.env.LUXORAI_SANDBOX_GATEWAY_URL = 'https://gw-sdk.luxor.test';
+    expect(readTenkiGatewayAddress()).toBe('https://gw-sdk.luxor.test');
   });
 
   it('reads AGENTBOX_LUXORAI_* before AGENTBOX_TENKI_*', async () => {
@@ -137,7 +197,10 @@ describe('LUXORAI_* env precedence', () => {
     try {
       process.env.HOME = home;
       mkdirSync(join(home, '.agentbox'));
-      writeFileSync(join(home, '.agentbox', 'secrets.env'), 'LUXORAI_AUTH_TOKEN=lx_old\n');
+      writeFileSync(
+        join(home, '.agentbox', 'secrets.env'),
+        'LUXORAI_AUTH_TOKEN=lx_old\nLUXORAI_API_KEY=lx_old_key\n',
+      );
       const { ensureTenkiEnvLoaded, readTenkiAuthToken } = await import('../src/env-loader.js');
       const { setTenkiCredentials } = await import('../src/credentials.js');
       ensureTenkiEnvLoaded();

@@ -16,6 +16,11 @@ AgentBox 0.30.0 or newer**; older CLIs refuse it.
   skipped with a warning; the others are still baked.
 - Granted host tools reach the box through AgentBox's generic tool shim; the dedicated `ntn` and
   `linear` shims are gone.
+- Accepts `LUXORAI_API_KEY` and `TENKI_API_KEY` as the auth token, the names the Tenki sandbox SDK
+  reads, and requires Tenki sandbox SDK 1.4.3 or newer, which accepts `lx_` keys.
+- Reads the control-plane and gateway overrides from `LUXORAI_API_URL` / `TENKI_API_URL` (or
+  `*_API_ENDPOINT`) and `*_SANDBOX_GATEWAY_URL`, the names the SDK reads. `*_BASE_URL` and
+  `*_GATEWAY_ADDRESS` still work.
 
 ### Known issues
 

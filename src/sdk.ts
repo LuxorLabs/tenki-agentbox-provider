@@ -7,14 +7,19 @@
  * reads `TENKI_AUTH_TOKEN` from `process.env`, but we still expose
  * `resolveAuthToken()` so callers can fail loud with an actionable error
  * before the SDK throws a generic "missing auth token" deep inside an op, and
- * `getTenkiClient()` so the optional `TENKI_BASE_URL` / `TENKI_GATEWAY_ADDRESS`
+ * `getTenkiClient()` so the optional `TENKI_API_URL` / `TENKI_SANDBOX_GATEWAY_URL`
  * overrides (self-hosted / staging control planes) are wired consistently.
  */
 
 import { TenkiSandbox } from '@tenkicloud/sandbox';
 import type { ClientOptions } from '@tenkicloud/sandbox';
 import { UserFacingError } from '@madarco/agentbox-provider-sdk';
-import { ensureTenkiEnvLoaded, readTenkiAuthToken, readTenkiEnv } from './env-loader.js';
+import {
+  ensureTenkiEnvLoaded,
+  readTenkiAuthToken,
+  readTenkiBaseUrl,
+  readTenkiGatewayAddress,
+} from './env-loader.js';
 
 export { TenkiSandbox };
 // The template API is deliberately unused: `prepare` bakes its base from a
@@ -89,9 +94,9 @@ export function hasUsableCredentials(): boolean {
  */
 export function getTenkiClient(): TenkiSandbox {
   const opts: ClientOptions = { authToken: resolveAuthToken() };
-  const baseUrl = readTenkiEnv('BASE_URL');
+  const baseUrl = readTenkiBaseUrl();
   if (baseUrl) opts.baseUrl = baseUrl;
-  const gatewayAddress = readTenkiEnv('GATEWAY_ADDRESS');
+  const gatewayAddress = readTenkiGatewayAddress();
   if (gatewayAddress) opts.gatewayAddress = gatewayAddress;
   return new TenkiSandbox(opts);
 }
