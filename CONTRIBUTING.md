@@ -66,7 +66,7 @@ minutes into a live, billable bake. Keep that property — if you change the pla
 ## Testing against a real Tenki workspace
 
 Unit tests cover the logic; the lifecycle needs a real workspace. You need a Tenki auth token in
-`TENKI_AUTH_TOKEN` (or `~/.agentbox/secrets.env`) and the published AgentBox CLI, 0.27.1 or newer:
+`TENKI_AUTH_TOKEN` (or `~/.agentbox/secrets.env`) and the published AgentBox CLI, 0.30.0 or newer:
 
 ```bash
 npm i -g @madarco/agentbox

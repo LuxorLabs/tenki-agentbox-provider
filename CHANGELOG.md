@@ -4,6 +4,24 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.0 - 2026-11-10
+
+Targets AgentBox provider SDK v4, so the provider loads on AgentBox 0.30.0 and newer. **Requires
+AgentBox 0.30.0 or newer**; older CLIs refuse it.
+
+### Changed
+
+- `prepare` now bakes the static config of every agent on the host, plus the shared `~/.agents`
+  skills tree, instead of only claude, codex and opencode. An agent whose config can't be read is
+  skipped with a warning; the others are still baked.
+- Granted host tools reach the box through AgentBox's generic tool shim; the dedicated `ntn` and
+  `linear` shims are gone.
+
+### Known issues
+
+- Agents in a new box start logged out, and claude shows its first-run prompts. Log in inside the
+  box, or log in once and start new boxes from a checkpoint.
+
 ## 0.2.0 - 2026-11-10
 
 ### Added

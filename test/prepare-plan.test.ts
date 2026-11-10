@@ -5,7 +5,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { buildInstallPlan, PREPARE_ASSETS, stagedAssetPath } from '../src/prepare.js';
+import {
+  boxExtractDir,
+  buildInstallPlan,
+  PREPARE_ASSETS,
+  stagedAssetPath,
+} from '../src/prepare.js';
 import { SHARED_RUNTIME_ASSETS } from '@madarco/agentbox-provider-sdk';
 
 const plan = buildInstallPlan();
@@ -27,7 +32,7 @@ describe('PREPARE_ASSETS', () => {
     expect(dests).toContain('/usr/local/bin/agentbox-ctl');
     // The shims shadow the real binaries on PATH — that indirection is why a box
     // needs no credentials of its own.
-    for (const shim of ['gh', 'git', 'ntn', 'linear']) {
+    for (const shim of ['gh', 'git', 'agentbox-tool-shim']) {
       expect(dests).toContain(`/usr/local/bin/${shim}`);
     }
   });
@@ -192,5 +197,20 @@ describe('buildInstallPlan', () => {
   it('cleans the staged uploads out of the snapshot', () => {
     // Whatever is left on disk when the snapshot is taken ships in every box.
     expect(script).toContain(`rm -f "${stagedAssetPath(PREPARE_ASSETS[0]!.shared)}"`);
+  });
+});
+
+describe('boxExtractDir', () => {
+  it("rehomes the SDK's /home/vscode paths onto the box user", () => {
+    expect(boxExtractDir('/home/vscode/.claude')).toBe('/home/tenki/.claude');
+    expect(boxExtractDir('/home/vscode/.local/share/opencode')).toBe(
+      '/home/tenki/.local/share/opencode',
+    );
+    expect(boxExtractDir('/home/vscode')).toBe('/home/tenki');
+  });
+
+  it('leaves other paths alone', () => {
+    expect(boxExtractDir('/home/vscodex/.cfg')).toBe('/home/vscodex/.cfg');
+    expect(boxExtractDir('/etc/agentbox')).toBe('/etc/agentbox');
   });
 });
