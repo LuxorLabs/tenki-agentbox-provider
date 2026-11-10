@@ -4,7 +4,7 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 0.2.0 - 2026-11-10
 
 ### Added
 
@@ -15,6 +15,15 @@ All notable changes to this package are documented here. The format follows
   and prepared base as `tenki`. Re-run `agentbox plugin add` to register it.
 - Release workflow can also publish the same tarball as `@luxorai/agentbox-provider` once the
   `LUXORAI_PUBLISH` repository variable is enabled.
+
+### Changed
+
+- Upgraded `@tenkicloud/sandbox` to `^1.4.0`.
+
+### Fixed
+
+- Commands run in a VM now honour their timeout: a timed-out command is aborted and reports exit
+  code 124 with a timeout note on stderr, instead of being left running.
 
 ## 0.1.1 — 2026-07-31
 
