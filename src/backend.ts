@@ -45,6 +45,7 @@ import { getTenkiClient } from './sdk.js';
 import { withTenkiRetry } from './retry.js';
 import { ensureTenkiBaseImage, readPreparedState } from './prepared-state.js';
 import { sshKeyDir } from './build-attach.js';
+import { readAgentboxEnv } from './env-loader.js';
 
 /** In-box port the cloud WebProxy binds + that we expose as the box's "web" port.
  *  8080 matches the non-privileged convention vercel/e2b use for VMs (the
@@ -167,7 +168,8 @@ async function resolveSession(handle: CloudHandle): Promise<Session> {
  * The owner scope a session is created under.
  *
  * A workspace auth token infers its own scope, so this is normally empty and
- * `create` carries no owner fields at all. `AGENTBOX_TENKI_WORKSPACE_ID` (the
+ * `create` carries no owner fields at all. `AGENTBOX_LUXORAI_WORKSPACE_ID` or
+ * `AGENTBOX_TENKI_WORKSPACE_ID` (the
  * name `prepare` already honors) pins it explicitly, which is what trusted
  * service credentials — valid for more than one workspace — need.
  *
@@ -177,7 +179,7 @@ async function resolveSession(handle: CloudHandle): Promise<Session> {
  * accepts it), so the lookup is gone with it.
  */
 function resolveOwnerScope(): { workspaceId?: string } {
-  const envWorkspace = process.env.AGENTBOX_TENKI_WORKSPACE_ID?.trim();
+  const envWorkspace = readAgentboxEnv('WORKSPACE_ID');
   return envWorkspace ? { workspaceId: envWorkspace } : {};
 }
 
