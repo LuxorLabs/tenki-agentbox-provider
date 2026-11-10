@@ -134,7 +134,10 @@ export function isRetriable(err: unknown, allowAmbiguous: boolean): boolean {
   return false;
 }
 
-export async function withTenkiRetry<T>(opts: WithRetryOptions, fn: () => Promise<T>): Promise<T> {
+export async function withTenkiRetry<T>(
+  opts: WithRetryOptions,
+  fn: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
   const backoff = opts.backoffMs ?? DEFAULT_BACKOFF;
   const maxAttempts = backoff.length + 1;
   const timeoutMs = opts.attemptTimeoutMs ?? DEFAULT_ATTEMPT_TIMEOUT_MS;
@@ -142,7 +145,7 @@ export async function withTenkiRetry<T>(opts: WithRetryOptions, fn: () => Promis
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      return await raceTimeout(fn(), timeoutMs, opts.method);
+      return await raceTimeout(fn, timeoutMs, opts.method);
     } catch (err) {
       const last = attempt === maxAttempts;
       if (last || !isRetriable(err, opts.retryOnAmbiguous)) throw err;
@@ -164,15 +167,22 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function raceTimeout<T>(p: Promise<T>, ms: number, method: string): Promise<T> {
+async function raceTimeout<T>(
+  fn: (signal: AbortSignal) => Promise<T>,
+  ms: number,
+  method: string,
+): Promise<T> {
+  const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    return await Promise.race([
-      p,
-      new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => reject(new AttemptTimeoutError(method, ms)), ms);
-      }),
-    ]);
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => {
+        const err = new AttemptTimeoutError(method, ms);
+        controller.abort(err);
+        reject(err);
+      }, ms);
+    });
+    return await Promise.race([fn(controller.signal), timeout]);
   } finally {
     if (timer !== undefined) clearTimeout(timer);
   }
