@@ -1,6 +1,6 @@
 {
   "name": "@tenkicloud/agentbox-provider",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Tenki provider plugin for AgentBox — run coding agents in Tenki VMs",
   "license": "MIT",
   "author": "Luxor Labs",
