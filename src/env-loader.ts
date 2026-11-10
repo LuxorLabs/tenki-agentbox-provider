@@ -9,13 +9,15 @@
  *   1. `process.env` (already set in the shell).
  *   2. `~/.agentbox/secrets.env` — written by the credential prompt.
  *
- * `TENKI_API_TOKEN` is accepted as an alias for `TENKI_AUTH_TOKEN`.
+ * `TENKI_API_TOKEN` is accepted as an alias for `TENKI_AUTH_TOKEN`. Every key
+ * also has a `LUXORAI_*` equivalent that wins over all `TENKI_*` keys; read them
+ * through `readTenkiEnv` rather than `process.env`.
  *
  * Project-level `.env` / `.env.local` are intentionally NOT consulted: those
  * files belong to the app code being developed. Put host credentials in
  * `~/.agentbox/secrets.env` (or the shell env).
  *
- * Only TENKI-prefixed keys are imported; the rest of the file is left alone.
+ * Only TENKI- and LUXORAI-prefixed keys are imported; the rest of the file is left alone.
  * Idempotent and side-effect-free after the first call.
  */
 
@@ -23,12 +25,36 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 
+const ENV_SUFFIXES = ['AUTH_TOKEN', 'API_TOKEN', 'BASE_URL', 'GATEWAY_ADDRESS'] as const;
 const TENKI_KEYS = [
-  'TENKI_AUTH_TOKEN',
-  'TENKI_API_TOKEN',
-  'TENKI_BASE_URL',
-  'TENKI_GATEWAY_ADDRESS',
-] as const;
+  ...ENV_SUFFIXES.map((s) => `LUXORAI_${s}`),
+  ...ENV_SUFFIXES.map((s) => `TENKI_${s}`),
+];
+
+/** Every `LUXORAI_<suffix>` is tried (in order) before any legacy `TENKI_<suffix>`. */
+export function readTenkiEnv(...suffixes: string[]): string | undefined {
+  for (const prefix of ['LUXORAI_', 'TENKI_']) {
+    for (const suffix of suffixes) {
+      const value = process.env[`${prefix}${suffix}`];
+      if (value) return value;
+    }
+  }
+  return undefined;
+}
+
+/** `AGENTBOX_LUXORAI_<suffix>`, falling back to the legacy `AGENTBOX_TENKI_<suffix>`. */
+export function readAgentboxEnv(suffix: string): string | undefined {
+  return (
+    process.env[`AGENTBOX_LUXORAI_${suffix}`]?.trim() ||
+    process.env[`AGENTBOX_TENKI_${suffix}`]?.trim() ||
+    undefined
+  );
+}
+
+/** The configured auth token: `LUXORAI_AUTH_TOKEN` > `LUXORAI_API_TOKEN` > `TENKI_AUTH_TOKEN` > `TENKI_API_TOKEN`. */
+export function readTenkiAuthToken(): string | undefined {
+  return readTenkiEnv('AUTH_TOKEN', 'API_TOKEN');
+}
 
 let loaded = false;
 

@@ -132,6 +132,35 @@ jobs:
 
           npm publish --access public
 
+      # Luxor AI dual publish: the same tarball renamed to @luxorai/agentbox-provider.
+      # Off until a human sets the repository variable LUXORAI_PUBLISH=true after
+      # configuring the @luxorai/agentbox-provider trusted publisher (this repo,
+      # npm-publish.yml, environment npm-publish).
+      - name: Publish @luxorai/agentbox-provider if version is new
+        if: vars.LUXORAI_PUBLISH == 'true'
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          NAME: '@luxorai/agentbox-provider'
+          VERSION: ${{ steps.pkg.outputs.version }}
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/luxorai-pkg"
+          mkdir -p "$dir"
+          tarball=$(npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP" | tail -n1)
+          tar xzf "$RUNNER_TEMP/$tarball" -C "$dir" --strip-components=1
+          cd "$dir"
+          npm pkg set "name=${NAME}"
+
+          if npm view "${NAME}@${VERSION}" version >/dev/null 2>&1; then
+            echo "${NAME}@${VERSION} already published, skipping"
+            exit 0
+          fi
+          if [ "${DRY_RUN}" = "true" ]; then
+            npm publish --access public --ignore-scripts --dry-run
+            exit 0
+          fi
+          npm publish --access public --ignore-scripts
+
       # Tagging comes after the publish so a failed publish leaves no tag
       # behind. The reverse gap — published but untagged — is recoverable: the
       # publish step above is idempotent, so re-running finishes the job.
