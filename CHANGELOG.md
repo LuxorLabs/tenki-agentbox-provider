@@ -4,10 +4,20 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## 0.2.0 — 2026-10-02
+## 0.2.0 — 2026-11-10
 
 Targets AgentBox provider SDK v4, so the provider loads on AgentBox 0.30.0 and newer. **Requires
 AgentBox 0.30.0 or newer**; older CLIs refuse it.
+
+### Added
+
+- `LUXORAI_AUTH_TOKEN`, `LUXORAI_API_TOKEN`, `LUXORAI_BASE_URL` and `LUXORAI_GATEWAY_ADDRESS` are read
+  (from the environment or `~/.agentbox/secrets.env`) before their `TENKI_*` equivalents, and
+  `AGENTBOX_LUXORAI_*` before `AGENTBOX_TENKI_*`. The `TENKI_*` names keep working.
+- A `luxor` provider alias (`agentbox create --provider luxor`) backed by the same provider, backend
+  and prepared base as `tenki`. Re-run `agentbox plugin add` to register it.
+- Release workflow can also publish the same tarball as `@luxorai/agentbox-provider` once the
+  `LUXORAI_PUBLISH` repository variable is enabled.
 
 ### Changed
 
@@ -15,6 +25,8 @@ AgentBox 0.30.0 or newer**; older CLIs refuse it.
   skills tree, instead of only claude, codex and opencode.
 - Granted host tools reach the box through AgentBox's generic tool shim; the dedicated `ntn` and
   `linear` shims are gone.
+- Uses Tenki sandbox SDK 1.4. A command that exceeds its timeout now stops and exits 124 with a
+  diagnostic, keeping its partial output.
 
 ### Known issues
 

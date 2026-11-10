@@ -38,6 +38,7 @@ import {
 } from '@madarco/agentbox-provider-sdk';
 import { DEFAULT_MAX_DURATION_MS, tenkiBackend } from './backend.js';
 import { getTenkiClient } from './sdk.js';
+import { readAgentboxEnv } from './env-loader.js';
 import { withTenkiRetry } from './retry.js';
 import { prepareTenkiProvider } from './prepare.js';
 import { buildTenkiAttach } from './build-attach.js';
@@ -47,6 +48,8 @@ import { doctorChecks, readCredStatusSummary } from './provider-module.js';
 
 /** The AgentBox provider name. `agentbox create --provider tenki` matches on this exactly. */
 export const PROVIDER_NAME = 'tenki';
+/** Luxor AI alias: `--provider luxor` runs the same provider, backend and state as `tenki`. */
+export const LUXOR_PROVIDER_NAME = 'luxor';
 
 const BACKEND_NAME = PROVIDER_NAME;
 
@@ -57,7 +60,7 @@ const cloudProvider = createCloudProvider(tenkiBackend, {
 
 /** Session lifetime override, in ms. Falsy/invalid values fall through to the default. */
 function envTimeoutMs(): number | undefined {
-  const raw = process.env.AGENTBOX_TENKI_TIMEOUT_MS?.trim();
+  const raw = readAgentboxEnv('TIMEOUT_MS');
   if (!raw) return undefined;
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? n : undefined;
@@ -198,6 +201,14 @@ export const providerModule: ProviderModule = {
   currentBaseFingerprintLive: () => currentTenkiBaseFingerprintLive(),
   doctorChecks,
 };
+
+export const luxorProviderModule: ProviderModule = {
+  ...providerModule,
+  provider: { ...tenkiProvider, name: LUXOR_PROVIDER_NAME },
+};
+
+/** Both names a plugin install registers; AgentBox matches `--provider` against `provider.name`. */
+export const providerModules: ProviderModule[] = [providerModule, luxorProviderModule];
 
 export { tenkiBackend };
 export { ensureTenkiEnvLoaded, reloadTenkiEnv } from './env-loader.js';

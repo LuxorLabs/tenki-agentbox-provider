@@ -14,7 +14,7 @@
 import { TenkiSandbox } from '@tenkicloud/sandbox';
 import type { ClientOptions } from '@tenkicloud/sandbox';
 import { UserFacingError } from '@madarco/agentbox-provider-sdk';
-import { ensureTenkiEnvLoaded } from './env-loader.js';
+import { ensureTenkiEnvLoaded, readTenkiAuthToken, readTenkiEnv } from './env-loader.js';
 
 export { TenkiSandbox };
 // The template API is deliberately unused: `prepare` bakes its base from a
@@ -62,7 +62,7 @@ export {
  */
 export function resolveAuthToken(): string {
   ensureTenkiEnvLoaded();
-  const t = process.env.TENKI_AUTH_TOKEN;
+  const t = readTenkiAuthToken();
   if (!t) {
     // UserFacingError (not a plain Error): AgentBox prints these as a clean
     // message, where anything else also dumps a stack trace at the user.
@@ -79,7 +79,7 @@ export function resolveAuthToken(): string {
 /** True when an auth token is configured. Used by the credential gate. */
 export function hasUsableCredentials(): boolean {
   ensureTenkiEnvLoaded();
-  return Boolean(process.env.TENKI_AUTH_TOKEN);
+  return Boolean(readTenkiAuthToken());
 }
 
 /**
@@ -89,9 +89,9 @@ export function hasUsableCredentials(): boolean {
  */
 export function getTenkiClient(): TenkiSandbox {
   const opts: ClientOptions = { authToken: resolveAuthToken() };
-  const baseUrl = process.env.TENKI_BASE_URL;
+  const baseUrl = readTenkiEnv('BASE_URL');
   if (baseUrl) opts.baseUrl = baseUrl;
-  const gatewayAddress = process.env.TENKI_GATEWAY_ADDRESS;
+  const gatewayAddress = readTenkiEnv('GATEWAY_ADDRESS');
   if (gatewayAddress) opts.gatewayAddress = gatewayAddress;
   return new TenkiSandbox(opts);
 }

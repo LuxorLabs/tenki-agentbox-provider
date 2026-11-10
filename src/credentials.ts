@@ -12,7 +12,7 @@ import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 import { hostOpenCommand } from '@madarco/agentbox-provider-sdk';
 import { cancel, confirm, intro, isCancel, log, note, outro, password } from '@clack/prompts';
-import { ensureTenkiEnvLoaded, reloadTenkiEnv } from './env-loader.js';
+import { ensureTenkiEnvLoaded, readTenkiAuthToken, reloadTenkiEnv } from './env-loader.js';
 import { hasUsableCredentials } from './sdk.js';
 import { writeManagedSecrets, type CredSetResult } from './secrets.js';
 
@@ -32,8 +32,9 @@ const DOCS_URL = 'https://tenki.cloud/docs';
 /**
  * Keys we manage in `~/.agentbox/secrets.env`. On reconfigure we strip prior
  * values for these before appending so the file never accumulates duplicates.
+ * The LUXORAI_* tokens are cleared too, since they would shadow the new value.
  */
-const MANAGED_KEYS = ['TENKI_AUTH_TOKEN'] as const;
+const MANAGED_KEYS = ['TENKI_AUTH_TOKEN', 'LUXORAI_AUTH_TOKEN', 'LUXORAI_API_TOKEN'] as const;
 
 export interface EnsureTenkiCredentialsOptions {
   /** Re-prompt even when valid credentials are already present. */
@@ -122,9 +123,9 @@ export interface TenkiCredStatus {
 }
 
 export function readTenkiCredStatus(): TenkiCredStatus {
-  const shellHad = process.env.TENKI_AUTH_TOKEN !== undefined;
+  const shellHad = readTenkiAuthToken() !== undefined;
   ensureTenkiEnvLoaded();
-  const token = process.env.TENKI_AUTH_TOKEN;
+  const token = readTenkiAuthToken();
   if (!token) return { auth: 'none', source: 'none' };
   return { auth: 'token', token, source: shellHad ? 'env' : 'secrets.env' };
 }

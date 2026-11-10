@@ -132,4 +132,32 @@ describe('withTenkiRetry', () => {
     ).toBe(42);
     expect(onRetry).not.toHaveBeenCalled();
   });
+
+  it('aborts each timed-out attempt and gives its retry a fresh signal', async () => {
+    const signals: AbortSignal[] = [];
+    const result = await withTenkiRetry(
+      {
+        method: 'test',
+        retryOnAmbiguous: true,
+        backoffMs: [1],
+        attemptTimeoutMs: 10,
+        onRetry: () => {},
+      },
+      async (signal) => {
+        signals.push(signal);
+        if (signals.length === 1) {
+          return new Promise<never>((_resolve, reject) => {
+            signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+          });
+        }
+        expect(signals[0]?.aborted).toBe(true);
+        expect(signal.aborted).toBe(false);
+        return 'ok';
+      },
+    );
+    expect(result).toBe('ok');
+    expect(signals).toHaveLength(2);
+    expect(signals[0]).not.toBe(signals[1]);
+    expect(signals[1]?.aborted).toBe(false);
+  });
 });

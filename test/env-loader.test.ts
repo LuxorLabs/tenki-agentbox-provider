@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseEnvFile } from '../src/env-loader.js';
 
@@ -72,5 +75,78 @@ describe('ensureTenkiEnvLoaded token alias', () => {
     const { ensureTenkiEnvLoaded } = await import('../src/env-loader.js');
     ensureTenkiEnvLoaded();
     expect(process.env.TENKI_AUTH_TOKEN).toBeUndefined();
+  });
+});
+
+describe('LUXORAI_* env precedence', () => {
+  const KEYS = [
+    'LUXORAI_AUTH_TOKEN',
+    'LUXORAI_API_TOKEN',
+    'TENKI_AUTH_TOKEN',
+    'TENKI_API_TOKEN',
+    'LUXORAI_BASE_URL',
+    'TENKI_BASE_URL',
+    'AGENTBOX_LUXORAI_TIMEOUT_MS',
+    'AGENTBOX_TENKI_TIMEOUT_MS',
+  ];
+  const saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
+
+  beforeEach(() => {
+    vi.resetModules();
+    for (const k of KEYS) delete process.env[k];
+    process.env.HOME = '/nonexistent-tenki-test-home';
+  });
+
+  afterEach(() => {
+    for (const k of KEYS) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+    vi.resetModules();
+  });
+
+  it('prefers any LUXORAI_* token over every TENKI_* token', async () => {
+    process.env.TENKI_AUTH_TOKEN = 'tk_legacy';
+    process.env.LUXORAI_API_TOKEN = 'lx_new';
+    const { ensureTenkiEnvLoaded, readTenkiAuthToken } = await import('../src/env-loader.js');
+    ensureTenkiEnvLoaded();
+    expect(readTenkiAuthToken()).toBe('lx_new');
+    process.env.LUXORAI_AUTH_TOKEN = 'lx_primary';
+    expect(readTenkiAuthToken()).toBe('lx_primary');
+  });
+
+  it('falls back to TENKI_* when no LUXORAI_* value is set', async () => {
+    process.env.TENKI_BASE_URL = 'https://api.tenki.test';
+    const { readTenkiEnv, readTenkiAuthToken } = await import('../src/env-loader.js');
+    expect(readTenkiEnv('BASE_URL')).toBe('https://api.tenki.test');
+    expect(readTenkiAuthToken()).toBeUndefined();
+    process.env.LUXORAI_BASE_URL = 'https://api.luxor.test';
+    expect(readTenkiEnv('BASE_URL')).toBe('https://api.luxor.test');
+  });
+
+  it('reads AGENTBOX_LUXORAI_* before AGENTBOX_TENKI_*', async () => {
+    process.env.AGENTBOX_TENKI_TIMEOUT_MS = '1000';
+    const { readAgentboxEnv } = await import('../src/env-loader.js');
+    expect(readAgentboxEnv('TIMEOUT_MS')).toBe('1000');
+    process.env.AGENTBOX_LUXORAI_TIMEOUT_MS = '2000';
+    expect(readAgentboxEnv('TIMEOUT_MS')).toBe('2000');
+  });
+
+  it('drops a stale LUXORAI_* token when new credentials are saved', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'tenki-env-'));
+    try {
+      process.env.HOME = home;
+      mkdirSync(join(home, '.agentbox'));
+      writeFileSync(join(home, '.agentbox', 'secrets.env'), 'LUXORAI_AUTH_TOKEN=lx_old\n');
+      const { ensureTenkiEnvLoaded, readTenkiAuthToken } = await import('../src/env-loader.js');
+      const { setTenkiCredentials } = await import('../src/credentials.js');
+      ensureTenkiEnvLoaded();
+      expect(readTenkiAuthToken()).toBe('lx_old');
+      expect(setTenkiCredentials({ token: 'tk_new' }).ok).toBe(true);
+      expect(readTenkiAuthToken()).toBe('tk_new');
+      expect(readFileSync(join(home, '.agentbox', 'secrets.env'), 'utf8')).not.toContain('lx_old');
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
   });
 });

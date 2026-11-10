@@ -40,6 +40,7 @@ import {
 import { tenkiBackend } from './backend.js';
 import { ensureTenkiCredentials } from './credentials.js';
 import { getTenkiClient, resolveAuthToken } from './sdk.js';
+import { readAgentboxEnv } from './env-loader.js';
 import { preparedStatePath, readPreparedState, writePreparedState } from './prepared-state.js';
 
 /** Resources the builder session runs with. Disk is the constraint — npm installs are chunky. */
@@ -509,8 +510,8 @@ export async function prepareTenki(opts: PrepareTenkiOptions = {}): Promise<Prep
     localPath: resolveSharedRuntimeAsset(asset.shared),
   }));
 
-  const baseImage = opts.baseImage ?? process.env.AGENTBOX_TENKI_BASE_IMAGE;
-  const workspaceId = opts.workspaceId ?? process.env.AGENTBOX_TENKI_WORKSPACE_ID;
+  const baseImage = opts.baseImage ?? readAgentboxEnv('BASE_IMAGE');
+  const workspaceId = opts.workspaceId ?? readAgentboxEnv('WORKSPACE_ID');
 
   progress('booting builder sandbox');
   const builder = await client.create({
