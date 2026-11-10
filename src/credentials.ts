@@ -34,7 +34,12 @@ const DOCS_URL = 'https://tenki.cloud/docs';
  * values for these before appending so the file never accumulates duplicates.
  * The LUXORAI_* tokens are cleared too, since they would shadow the new value.
  */
-const MANAGED_KEYS = ['TENKI_AUTH_TOKEN', 'LUXORAI_AUTH_TOKEN', 'LUXORAI_API_TOKEN'] as const;
+const MANAGED_KEYS = [
+  'TENKI_AUTH_TOKEN',
+  'LUXORAI_AUTH_TOKEN',
+  'LUXORAI_API_KEY',
+  'LUXORAI_API_TOKEN',
+] as const;
 
 export interface EnsureTenkiCredentialsOptions {
   /** Re-prompt even when valid credentials are already present. */

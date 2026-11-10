@@ -9,7 +9,8 @@
  *   1. `process.env` (already set in the shell).
  *   2. `~/.agentbox/secrets.env` — written by the credential prompt.
  *
- * `TENKI_API_TOKEN` is accepted as an alias for `TENKI_AUTH_TOKEN`. Every key
+ * `TENKI_API_KEY` (the name the SDK also reads) and `TENKI_API_TOKEN` are
+ * accepted as aliases for `TENKI_AUTH_TOKEN`. Every key
  * also has a `LUXORAI_*` equivalent that wins over all `TENKI_*` keys; read them
  * through `readTenkiEnv` rather than `process.env`.
  *
@@ -25,7 +26,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 
-const ENV_SUFFIXES = ['AUTH_TOKEN', 'API_TOKEN', 'BASE_URL', 'GATEWAY_ADDRESS'] as const;
+const ENV_SUFFIXES = ['AUTH_TOKEN', 'API_KEY', 'API_TOKEN', 'BASE_URL', 'GATEWAY_ADDRESS'] as const;
 const TENKI_KEYS = [
   ...ENV_SUFFIXES.map((s) => `LUXORAI_${s}`),
   ...ENV_SUFFIXES.map((s) => `TENKI_${s}`),
@@ -51,9 +52,9 @@ export function readAgentboxEnv(suffix: string): string | undefined {
   );
 }
 
-/** The configured auth token: `LUXORAI_AUTH_TOKEN` > `LUXORAI_API_TOKEN` > `TENKI_AUTH_TOKEN` > `TENKI_API_TOKEN`. */
+/** The configured auth token: `LUXORAI_{AUTH_TOKEN,API_KEY,API_TOKEN}` > `TENKI_{AUTH_TOKEN,API_KEY,API_TOKEN}`. */
 export function readTenkiAuthToken(): string | undefined {
-  return readTenkiEnv('AUTH_TOKEN', 'API_TOKEN');
+  return readTenkiEnv('AUTH_TOKEN', 'API_KEY', 'API_TOKEN');
 }
 
 let loaded = false;
