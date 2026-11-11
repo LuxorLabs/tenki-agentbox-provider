@@ -1,24 +1,27 @@
-# @tenkicloud/agentbox-provider
+# @luxorai/agentbox-provider
 
-Run [AgentBox](https://agent-box.sh) coding agents in [Tenki](https://tenki.cloud) VMs — a community
-provider plugin, published as its own package and registered with `agentbox plugin add`.
+Run [AgentBox](https://agent-box.sh) coding agents in [Luxor Sandbox](https://luxor.ai) VMs, part of
+Luxor Agent Cloud by Luxor AI. A community provider plugin, published as its own package and
+registered with `agentbox plugin add`.
 
-## What Tenki is
+The old `@tenkicloud/agentbox-provider` name keeps working and publishes the same code.
 
-[Tenki](https://tenki.cloud) provisions VMs on demand, driven by the official
-[`@tenkicloud/sandbox`](https://www.npmjs.com/package/@tenkicloud/sandbox) TypeScript SDK — a
-ConnectRPC control plane plus a per-session data plane for command execution and file transfer.
-Each AgentBox box becomes one Tenki session: a full VM with its own kernel, not a shared container.
+## What Luxor Sandbox is
+
+[Luxor Sandbox](https://luxor.ai) provisions VMs on demand, driven by the official
+[`@luxorai/sandbox`](https://www.npmjs.com/package/@luxorai/sandbox) TypeScript SDK: a ConnectRPC
+control plane plus a per-session data plane for command execution and file transfer. Each AgentBox
+box becomes one Luxor Sandbox session: a full VM with its own kernel, not a shared container.
 
 ## What you get
 
 | Feature                   | What it means                                                                                              |
 | ------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **A VM per box**          | Every box is its own VM — real kernel isolation, not a shared container                                    |
+| **A VM per box**          | Every box is its own VM: real kernel isolation, not a shared container                                     |
 | **Your project, ready**   | The workspace arrives as a git clone on a per-box branch, carrying your uncommitted and untracked changes  |
-| **Agents preinstalled**   | `claude`, `codex` and `opencode` are in the image; `agentbox tenki claude` drops you straight into one     |
+| **Agents preinstalled**   | `claude`, `codex` and `opencode` are in the image; `agentbox luxor claude` drops you straight into one     |
 | **Your setup travels**    | Settings, MCP servers and plugins come from your host; credentials are seeded per box, never baked in      |
-| **Interactive terminal**  | Attach over SSH into a tmux session — detach and come back, and resizing your window works                 |
+| **Interactive terminal**  | Attach over SSH into a tmux session; detach and come back, and resizing your window works                  |
 | **Public preview URLs**   | Every exposed port gets an HTTPS URL with no tunnel or token to manage; signed URLs for private ports      |
 | **Files in and out**      | `agentbox cp` moves files between your machine and the box, in either direction                            |
 | **Docker inside the box** | `docker build` and `docker run` work in the box, so containerised test suites and compose stacks run there |
@@ -30,71 +33,73 @@ Each AgentBox box becomes one Tenki session: a full VM with its own kernel, not 
 ## Requirements
 
 - Node.js 20 or newer
-- The `agentbox` CLI (0.30.0 or newer — it must support provider SDK v4)
+- The `agentbox` CLI (0.30.0 or newer; it must support provider SDK v4)
 - An OpenSSH client (`ssh` and `ssh-keygen`) on the host, used for interactive attach
-- A Tenki account with a workspace and an auth token
+- A Luxor Agent Cloud account with a workspace and an auth token
 
 ## Installation
 
 ```bash
-npm i -g @tenkicloud/agentbox-provider
-agentbox plugin add @tenkicloud/agentbox-provider
-agentbox plugin list            # -> tenki … (SDK v4)
+npm i -g @luxorai/agentbox-provider
+agentbox plugin add @luxorai/agentbox-provider
+agentbox plugin list            # -> tenki, luxor … (SDK v4)
 ```
 
-AgentBox does not know about `tenki` until `plugin add` records it. A plugin runs in-process with
-full host and credential access, so `plugin add` is the trust boundary — see
-[Security](#security-considerations).
+AgentBox does not know about the `luxor` and `tenki` providers until `plugin add` records them. A
+plugin runs in-process with full host and credential access, so `plugin add` is the trust boundary;
+see [Security](#security-considerations).
 
 ## Authentication
 
-On a terminal, the first `agentbox create --provider tenki` prompts for a token and saves it. To set
-it up ahead of time, expose it as `TENKI_AUTH_TOKEN`:
+On a terminal, the first `agentbox create --provider luxor` prompts for a token and saves it. To set
+it up ahead of time, expose it as `LUXORAI_AUTH_TOKEN`:
 
 ```bash
-export TENKI_AUTH_TOKEN=...          # or add TENKI_AUTH_TOKEN=… to ~/.agentbox/secrets.env
+export LUXORAI_AUTH_TOKEN=lx_...     # or add LUXORAI_AUTH_TOKEN=... to ~/.agentbox/secrets.env
 agentbox doctor                      # shows the `tenki:` group
 ```
 
-`TENKI_API_TOKEN` is accepted as an alias, and each `TENKI_*` variable has a `LUXORAI_*` equivalent
-(for example `LUXORAI_AUTH_TOKEN`) that is read first. `--provider luxor` is an alias of `--provider tenki`. Credentials are read from the environment first, then
-from `~/.agentbox/secrets.env` (mode `0600`); project `.env` files are never harvested. The token is
+Tokens start with `lx_`; `tk_` tokens are still accepted. `LUXORAI_API_TOKEN` is accepted as an
+alias, and each `LUXORAI_*` variable is read before its `TENKI_*` equivalent (for example
+`TENKI_AUTH_TOKEN`), which is still accepted. `--provider luxor` is an alias of `--provider tenki`.
+Credentials are read from the environment first, then from `~/.agentbox/secrets.env` (mode `0600`); project `.env` files are never harvested. The token is
 never logged and never included in the published package.
 
 ## Basic usage
 
-One-time: bake the AgentBox base image in your Tenki workspace, then create a box. `prepare` boots a
-throwaway builder from Tenki's `sandbox` base, installs tmux, the AgentBox runtime and the coding
+One-time: bake the AgentBox base image in your Luxor Agent Cloud workspace, then create a box.
+`prepare` boots a throwaway builder from Luxor Sandbox's `sandbox` base, installs tmux, the AgentBox runtime and the coding
 agents, snapshots it, and pins the snapshot id. Every box then boots from that snapshot.
 
 ```bash
-agentbox prepare --provider tenki    # bakes the base image; pins the snapshot id locally
-agentbox create --provider tenki
-agentbox tenki claude                # provider-prefix sugar also works
+agentbox prepare --provider luxor    # bakes the base image; pins the snapshot id locally
+agentbox create --provider luxor
+agentbox luxor claude                # provider-prefix sugar also works
 ```
 
-Pin it project-wide with `box.provider: tenki` in `agentbox.yaml`, or per box with
-`--provider tenki`.
+Pin it project-wide with `box.provider: luxor` in `agentbox.yaml`, or per box with
+`--provider luxor`. `tenki` still works everywhere `luxor` does.
 
 ## Resource configuration
 
-Because AgentBox does not add config keys for plugin providers, Tenki reads its settings from the
-generic keys plus its own environment variables:
+Because AgentBox does not add config keys for plugin providers, the provider reads its settings from
+the generic keys plus its own environment variables. Each `AGENTBOX_LUXORAI_*` variable is read
+first; the `AGENTBOX_TENKI_*` names are still accepted.
 
-| Setting            | Where                         | Notes                                                      |
-| ------------------ | ----------------------------- | ---------------------------------------------------------- |
-| VM size            | `--size` / `box.size`         | `cpu-memory[-disk]` in GB, e.g. `4-8-20`                   |
-| Default checkpoint | `box.defaultCheckpoint`       | Generic key; no per-provider variant                       |
-| Base image         | `AGENTBOX_TENKI_BASE_IMAGE`   | Tenki base image `prepare` layers onto (default `sandbox`) |
-| Workspace          | `AGENTBOX_TENKI_WORKSPACE_ID` | Defaults to the token's own scope                          |
-| Session lifetime   | `AGENTBOX_TENKI_TIMEOUT_MS`   | Seeds the host keepalive loop                              |
+| Setting            | Where                           | Notes                                                              |
+| ------------------ | ------------------------------- | ------------------------------------------------------------------ |
+| VM size            | `--size` / `box.size`           | `cpu-memory[-disk]` in GB, e.g. `4-8-20`                           |
+| Default checkpoint | `box.defaultCheckpoint`         | Generic key; no per-provider variant                               |
+| Base image         | `AGENTBOX_LUXORAI_BASE_IMAGE`   | Luxor Sandbox base image `prepare` layers onto (default `sandbox`) |
+| Workspace          | `AGENTBOX_LUXORAI_WORKSPACE_ID` | Defaults to the token's own scope                                  |
+| Session lifetime   | `AGENTBOX_LUXORAI_TIMEOUT_MS`   | Seeds the host keepalive loop                                      |
 
 The baked base snapshot id lives in `~/.agentbox/tenki-prepared.json`, managed by this plugin.
 
 ## Agent configuration and credentials
 
-`prepare` bakes your host's **static** agent config into the base snapshot — settings, MCP servers,
-plugin registries, `/workspace` pre-trust, and the shared `~/.agents` skills tree — for every agent
+`prepare` bakes your host's **static** agent config into the base snapshot (settings, MCP servers,
+plugin registries, `/workspace` pre-trust, and the shared `~/.agents` skills tree) for every agent
 on the host, so boxes start with your own setup rather than a blank one. It is best-effort: an agent
 whose config can't be read is skipped with a warning rather than failing the bake.
 
@@ -116,49 +121,50 @@ The alias keeps seeded files owned by the user the agents actually run as.
 
 ## Preview URLs
 
-Every exposed port gets a public HTTPS URL through Tenki's WebProxy — no tunnel and no token
-needed. `agentbox open` and the `expose:` entries in `agentbox.yaml` work as they do on any cloud
+Every exposed port gets a public HTTPS URL through the Luxor Sandbox WebProxy, with no tunnel and no
+token needed. `agentbox open` and the `expose:` entries in `agentbox.yaml` work as they do on any cloud
 provider. Signed URLs are available for ports you don't want publicly reachable.
 
 ## Checkpoint support
 
-Tenki snapshots are **id-addressed**: the platform returns an opaque id rather than a name you
+Luxor Sandbox snapshots are **id-addressed**: the platform returns an opaque id rather than a name you
 choose. The plugin stores that id in AgentBox's cloud-checkpoint manifest, so
 `agentbox checkpoint create` / `list` / restore behave the same as on Vercel and E2B. Snapshots are
-taken live — the source box keeps running.
+taken live; the source box keeps running.
 
 ## Troubleshooting
 
-- **`unknown provider "tenki"`** — the plugin isn't registered. Run `agentbox plugin add
-@tenkicloud/agentbox-provider` and confirm with `agentbox plugin list`.
-- **`plugin targets provider SDK vN`** — your `agentbox` CLI is too old. Update to 0.30.0 or newer.
-- **Credentials not found** — check `agentbox doctor`. The token must be in the environment or in
+- **`unknown provider "luxor"`** (or `"tenki"`): the plugin isn't registered. Run
+  `agentbox plugin add @luxorai/agentbox-provider` and confirm with `agentbox plugin list`.
+- **`plugin targets provider SDK vN`**: your `agentbox` CLI is too old. Update to 0.30.0 or newer.
+- **Credentials not found**: check `agentbox doctor`. The token must be in the environment or in
   `~/.agentbox/secrets.env`, not a project `.env`.
-- **No base image** — run `agentbox prepare --provider tenki`. Boxes boot from a snapshot baked in
-  your own Tenki workspace, so this is required once per workspace. If that snapshot is later deleted
+- **No base image**: run `agentbox prepare --provider luxor`. Boxes boot from a snapshot baked in
+  your own Luxor Agent Cloud workspace, so this is required once per workspace. If that snapshot is later deleted
   (or the token is pointed at another workspace), the next `prepare` notices and re-bakes.
-- **Box expired mid-session** — raise `AGENTBOX_TENKI_TIMEOUT_MS`; the host keepalive extends a
+- **Box expired mid-session**: raise `AGENTBOX_LUXORAI_TIMEOUT_MS`; the host keepalive extends a
   working session, but it starts from the lifetime the box was created with.
-- **Attach fails to open a shell** — attach needs `ssh` and `ssh-keygen` on the host. Per-box key
+- **Attach fails to open a shell**: attach needs `ssh` and `ssh-keygen` on the host. Per-box key
   material lives in `~/.agentbox/boxes/<session-id>/ssh/`; the certificate is re-minted on every
   attach, so deleting that directory is safe and simply regenerates it.
-- **Attach as a different user** — set `AGENTBOX_TENKI_SSH_USER` if a custom base image does not run
+- **Attach as a different user**: set `AGENTBOX_LUXORAI_SSH_USER` if a custom base image does not run
   as `tenki`.
 
 ## Security considerations
 
 - An AgentBox provider plugin runs **in-process with the CLI**, with full host and credential
-  access. AgentBox does not sandbox plugin code — provisioning infrastructure and handling secrets
+  access. AgentBox does not sandbox plugin code: provisioning infrastructure and handling secrets
   is the job. `agentbox plugin add` is the consent boundary; only add plugins you trust.
-- The Tenki token is read from the environment or `~/.agentbox/secrets.env` (`0600`), never logged,
+- The Luxor Agent Cloud token is read from the environment or `~/.agentbox/secrets.env` (`0600`), never logged,
   and never bundled into the published artifact.
 - Each box is an isolated VM, so an agent cannot reach your host filesystem. Host-side
   operations that need your credentials (`git push` in particular) are brokered by the AgentBox host
   relay rather than by handing keys to the box.
 - **The VM is the boundary, not the in-box user.** Inside a box the agent has passwordless
-  `sudo` and Docker access, which is root-equivalent by design — in-box Docker requires it.
-- Interactive attach trusts the Tenki gateway's TLS rather than an SSH host key (the "host" is a
-  session id, not a stable endpoint). If you override `TENKI_BASE_URL` or `TENKI_GATEWAY_ADDRESS`,
+  `sudo` and Docker access, which is root-equivalent by design; in-box Docker requires it.
+- Interactive attach trusts the Luxor Sandbox gateway's TLS rather than an SSH host key (the "host" is a
+  session id, not a stable endpoint). If you override `LUXORAI_BASE_URL` or `LUXORAI_GATEWAY_ADDRESS`
+  (or their `TENKI_*` equivalents),
   point them only at endpoints you trust.
 - Preview URLs are public: anyone holding one can reach the port, with no token. Use the signed
   (expiring) variant for anything that should not stay durably reachable.
@@ -170,12 +176,12 @@ The full trust model, and how to report a vulnerability privately, are in
 
 ```bash
 agentbox plugin remove tenki                       # unregister (leaves the npm package installed)
-npm uninstall -g @tenkicloud/agentbox-provider
+npm uninstall -g @luxorai/agentbox-provider
 ```
 
-Destroy any remaining boxes with `agentbox destroy <name>` first — removing the plugin leaves
-AgentBox unable to manage them. Base images and snapshots in your Tenki workspace are not deleted;
-remove those through Tenki.
+Destroy any remaining boxes with `agentbox destroy <name>` first; removing the plugin leaves
+AgentBox unable to manage them. Base images and snapshots in your Luxor Agent Cloud workspace are
+not deleted; remove those through Luxor Agent Cloud.
 
 ## Development
 
@@ -206,11 +212,11 @@ of truth for both npm and the git tag:
 3. Run it again with `dry_run` off. It publishes to npm, tags the commit `v<version>`, and cuts a
    GitHub release with generated notes.
 
-Publishing is idempotent — an already-published version is skipped — so a re-run after a partial
+Publishing is idempotent (an already-published version is skipped), so a re-run after a partial
 failure is safe. Authentication is npm trusted publishing (OIDC), so there is no token to rotate.
 
 ## License
 
-MIT — see [LICENSE](./LICENSE). Maintained by Luxor Labs. AgentBox itself is a separate project by
+MIT, see [LICENSE](./LICENSE). Maintained by Luxor AI. AgentBox itself is a separate project by
 Marco D'Alia; this plugin builds on its public
 [`@madarco/agentbox-provider-sdk`](https://www.npmjs.com/package/@madarco/agentbox-provider-sdk).
