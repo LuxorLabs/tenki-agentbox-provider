@@ -1,7 +1,7 @@
 {
   "name": "@tenkicloud/agentbox-provider",
   "version": "0.3.0",
-  "description": "Tenki provider plugin for AgentBox — run coding agents in Tenki VMs",
+  "description": "Luxor Sandbox provider plugin for AgentBox: run coding agents in Luxor Agent Cloud VMs",
   "license": "MIT",
   "author": "Luxor Labs",
   "type": "module",
@@ -23,16 +23,20 @@
     "agentbox-provider",
     "provider",
     "plugin",
-    "tenki",
+    "luxor",
+    "luxorai",
+    "luxor-sandbox",
+    "luxor-agent-cloud",
     "sandbox",
     "vm",
-    "coding-agent"
+    "coding-agent",
+    "tenki"
   ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/LuxorLabs/tenki-agentbox-provider.git"
   },
-  "homepage": "https://github.com/LuxorLabs/tenki-agentbox-provider#readme",
+  "homepage": "https://luxor.ai",
   "bugs": {
     "url": "https://github.com/LuxorLabs/tenki-agentbox-provider/issues"
   },
