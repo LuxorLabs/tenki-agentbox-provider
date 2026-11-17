@@ -68,7 +68,8 @@ export function resolveAuthToken(): string {
     // message, where anything else also dumps a stack trace at the user.
     throw new UserFacingError(
       'Tenki credentials not configured.\n' +
-        'Set TENKI_AUTH_TOKEN (your auth token from https://tenki.cloud) in the environment ' +
+        'Set LUXOR_AUTH_TOKEN (your auth token from https://tenki.cloud; TENKI_AUTH_TOKEN is ' +
+        'still accepted as the legacy fallback) in the environment ' +
         'or in ~/.agentbox/secrets.env. Running `agentbox create --provider tenki` on a ' +
         'terminal also prompts for it.',
     );
