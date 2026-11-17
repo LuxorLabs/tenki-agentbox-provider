@@ -78,15 +78,15 @@ describe('ensureTenkiEnvLoaded token alias', () => {
   });
 });
 
-describe('LUXORAI_* env precedence', () => {
+describe('LUXOR_* env precedence', () => {
   const KEYS = [
-    'LUXORAI_AUTH_TOKEN',
-    'LUXORAI_API_TOKEN',
+    'LUXOR_AUTH_TOKEN',
+    'LUXOR_API_TOKEN',
     'TENKI_AUTH_TOKEN',
     'TENKI_API_TOKEN',
-    'LUXORAI_BASE_URL',
+    'LUXOR_BASE_URL',
     'TENKI_BASE_URL',
-    'AGENTBOX_LUXORAI_TIMEOUT_MS',
+    'AGENTBOX_LUXOR_TIMEOUT_MS',
     'AGENTBOX_TENKI_TIMEOUT_MS',
   ];
   const saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
@@ -105,39 +105,39 @@ describe('LUXORAI_* env precedence', () => {
     vi.resetModules();
   });
 
-  it('prefers any LUXORAI_* token over every TENKI_* token', async () => {
+  it('prefers any LUXOR_* token over every TENKI_* token', async () => {
     process.env.TENKI_AUTH_TOKEN = 'tk_legacy';
-    process.env.LUXORAI_API_TOKEN = 'lx_new';
+    process.env.LUXOR_API_TOKEN = 'lx_new';
     const { ensureTenkiEnvLoaded, readTenkiAuthToken } = await import('../src/env-loader.js');
     ensureTenkiEnvLoaded();
     expect(readTenkiAuthToken()).toBe('lx_new');
-    process.env.LUXORAI_AUTH_TOKEN = 'lx_primary';
+    process.env.LUXOR_AUTH_TOKEN = 'lx_primary';
     expect(readTenkiAuthToken()).toBe('lx_primary');
   });
 
-  it('falls back to TENKI_* when no LUXORAI_* value is set', async () => {
+  it('falls back to TENKI_* when no LUXOR_* value is set', async () => {
     process.env.TENKI_BASE_URL = 'https://api.tenki.test';
     const { readTenkiEnv, readTenkiAuthToken } = await import('../src/env-loader.js');
     expect(readTenkiEnv('BASE_URL')).toBe('https://api.tenki.test');
     expect(readTenkiAuthToken()).toBeUndefined();
-    process.env.LUXORAI_BASE_URL = 'https://api.luxor.test';
+    process.env.LUXOR_BASE_URL = 'https://api.luxor.test';
     expect(readTenkiEnv('BASE_URL')).toBe('https://api.luxor.test');
   });
 
-  it('reads AGENTBOX_LUXORAI_* before AGENTBOX_TENKI_*', async () => {
+  it('reads AGENTBOX_LUXOR_* before AGENTBOX_TENKI_*', async () => {
     process.env.AGENTBOX_TENKI_TIMEOUT_MS = '1000';
     const { readAgentboxEnv } = await import('../src/env-loader.js');
     expect(readAgentboxEnv('TIMEOUT_MS')).toBe('1000');
-    process.env.AGENTBOX_LUXORAI_TIMEOUT_MS = '2000';
+    process.env.AGENTBOX_LUXOR_TIMEOUT_MS = '2000';
     expect(readAgentboxEnv('TIMEOUT_MS')).toBe('2000');
   });
 
-  it('drops a stale LUXORAI_* token when new credentials are saved', async () => {
+  it('drops a stale LUXOR_* token when new credentials are saved', async () => {
     const home = mkdtempSync(join(tmpdir(), 'tenki-env-'));
     try {
       process.env.HOME = home;
       mkdirSync(join(home, '.agentbox'));
-      writeFileSync(join(home, '.agentbox', 'secrets.env'), 'LUXORAI_AUTH_TOKEN=lx_old\n');
+      writeFileSync(join(home, '.agentbox', 'secrets.env'), 'LUXOR_AUTH_TOKEN=lx_old\n');
       const { ensureTenkiEnvLoaded, readTenkiAuthToken } = await import('../src/env-loader.js');
       const { setTenkiCredentials } = await import('../src/credentials.js');
       ensureTenkiEnvLoaded();

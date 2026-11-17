@@ -166,7 +166,7 @@ export async function buildTenkiAttach(
     // `ssh -t` propagates the local TERM to the remote PTY.
     TERM: hostTerm,
   };
-  // The helper reads the TENKI_* names; LUXORAI_* values are resolved here.
+  // The helper reads the TENKI_* names; LUXOR_* values are resolved here.
   const baseUrl = readTenkiEnv('BASE_URL');
   if (baseUrl) env.TENKI_BASE_URL = baseUrl;
   const gatewayAddress = readTenkiEnv('GATEWAY_ADDRESS');

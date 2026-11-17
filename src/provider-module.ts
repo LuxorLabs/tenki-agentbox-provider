@@ -34,7 +34,7 @@ export async function doctorChecks(): Promise<CheckResult[]> {
             // No `tenki login` command exists for a plugin provider: point at
             // the two places the token is actually read from. An interactive
             // `create` also prompts for it.
-            hint: `set TENKI_AUTH_TOKEN in the environment or in ${secretsPath()}`,
+            hint: `set LUXOR_AUTH_TOKEN (or the legacy TENKI_AUTH_TOKEN) in the environment or in ${secretsPath()}`,
           }
         : {
             label: 'credentials',

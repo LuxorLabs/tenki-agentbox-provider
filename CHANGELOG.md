@@ -4,6 +4,16 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.1 - 2026-11-17
+
+### Changed
+
+- Environment variables now use the `LUXOR_` prefix (for example `LUXOR_AUTH_TOKEN` and
+  `AGENTBOX_LUXOR_TIMEOUT_MS`). `LUXORAI_*` and `AGENTBOX_LUXORAI_*` variables are no longer read;
+  `TENKI_*` and `AGENTBOX_TENKI_*` still work as a fallback.
+- Requires `@tenkicloud/sandbox` 1.5.3 or newer, the first SDK release that reads `LUXOR_*` and no
+  longer reads `LUXORAI_*`.
+
 ## 0.3.0 - 2026-11-12
 
 Targets AgentBox provider SDK v4, so the provider loads on AgentBox 0.30.0 and newer. **Requires

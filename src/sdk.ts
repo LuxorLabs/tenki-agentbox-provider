@@ -4,7 +4,7 @@
  * single place (so tests can mock `./sdk.js` instead of the package).
  *
  * Tenki authenticates with a single workspace auth token (`tk_…`). The SDK
- * reads `TENKI_AUTH_TOKEN` from `process.env`, but we still expose
+ * reads `LUXOR_AUTH_TOKEN` / `TENKI_AUTH_TOKEN` from `process.env`, but we still expose
  * `resolveAuthToken()` so callers can fail loud with an actionable error
  * before the SDK throws a generic "missing auth token" deep inside an op, and
  * `getTenkiClient()` so the optional `TENKI_BASE_URL` / `TENKI_GATEWAY_ADDRESS`
@@ -68,7 +68,8 @@ export function resolveAuthToken(): string {
     // message, where anything else also dumps a stack trace at the user.
     throw new UserFacingError(
       'Tenki credentials not configured.\n' +
-        'Set TENKI_AUTH_TOKEN (your auth token from https://tenki.cloud) in the environment ' +
+        'Set LUXOR_AUTH_TOKEN (your auth token from https://tenki.cloud; TENKI_AUTH_TOKEN is ' +
+        'still accepted as the legacy fallback) in the environment ' +
         'or in ~/.agentbox/secrets.env. Running `agentbox create --provider tenki` on a ' +
         'terminal also prompts for it.',
     );

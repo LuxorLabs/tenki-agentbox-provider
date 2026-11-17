@@ -57,8 +57,8 @@ are in fact the documented design:
 - **Interactive attach trusts the Tenki gateway's TLS rather than an SSH host key.** The SSH session
   runs over the gateway's authenticated WebSocket, and the "host" is a session id rather than a
   stable endpoint, so `StrictHostKeyChecking` is off and no host key is pinned. If you override
-  `TENKI_BASE_URL` or `TENKI_GATEWAY_ADDRESS`, point them only at endpoints you trust — there is no
-  second layer of authentication behind them.
+  `LUXOR_BASE_URL` or `LUXOR_GATEWAY_ADDRESS` (or their legacy `TENKI_*` equivalents), point them
+  only at endpoints you trust: there is no second layer of authentication behind them.
 - **Preview URLs are public.** An exposed port gets an HTTPS URL that anyone holding it can reach; no
   token is required. Use the signed (expiring) variant for anything you don't want durably
   reachable, and `agentbox` will unexpose the port when the box is destroyed.

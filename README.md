@@ -52,15 +52,15 @@ see [Security](#security-considerations).
 ## Authentication
 
 On a terminal, the first `agentbox create --provider luxor` prompts for a token and saves it. To set
-it up ahead of time, expose it as `LUXORAI_AUTH_TOKEN`:
+it up ahead of time, expose it as `LUXOR_AUTH_TOKEN`:
 
 ```bash
-export LUXORAI_AUTH_TOKEN=lx_...     # or add LUXORAI_AUTH_TOKEN=... to ~/.agentbox/secrets.env
+export LUXOR_AUTH_TOKEN=lx_...       # or add LUXOR_AUTH_TOKEN=... to ~/.agentbox/secrets.env
 agentbox doctor                      # shows the `tenki:` group
 ```
 
-Tokens start with `lx_`; `tk_` tokens are still accepted. `LUXORAI_API_TOKEN` is accepted as an
-alias, and each `LUXORAI_*` variable is read before its `TENKI_*` equivalent (for example
+Tokens start with `lx_`; `tk_` tokens are still accepted. `LUXOR_API_TOKEN` is accepted as an
+alias, and each `LUXOR_*` variable is read before its `TENKI_*` equivalent (for example
 `TENKI_AUTH_TOKEN`), which is still accepted. `--provider luxor` is an alias of `--provider tenki`.
 Credentials are read from the environment first, then from `~/.agentbox/secrets.env` (mode `0600`); project `.env` files are never harvested. The token is
 never logged and never included in the published package.
@@ -83,16 +83,16 @@ Pin it project-wide with `box.provider: luxor` in `agentbox.yaml`, or per box wi
 ## Resource configuration
 
 Because AgentBox does not add config keys for plugin providers, the provider reads its settings from
-the generic keys plus its own environment variables. Each `AGENTBOX_LUXORAI_*` variable is read
+the generic keys plus its own environment variables. Each `AGENTBOX_LUXOR_*` variable is read
 first; the `AGENTBOX_TENKI_*` names are still accepted.
 
-| Setting            | Where                           | Notes                                                              |
-| ------------------ | ------------------------------- | ------------------------------------------------------------------ |
-| VM size            | `--size` / `box.size`           | `cpu-memory[-disk]` in GB, e.g. `4-8-20`                           |
-| Default checkpoint | `box.defaultCheckpoint`         | Generic key; no per-provider variant                               |
-| Base image         | `AGENTBOX_LUXORAI_BASE_IMAGE`   | Luxor Sandbox base image `prepare` layers onto (default `sandbox`) |
-| Workspace          | `AGENTBOX_LUXORAI_WORKSPACE_ID` | Defaults to the token's own scope                                  |
-| Session lifetime   | `AGENTBOX_LUXORAI_TIMEOUT_MS`   | Seeds the host keepalive loop                                      |
+| Setting            | Where                         | Notes                                                              |
+| ------------------ | ----------------------------- | ------------------------------------------------------------------ |
+| VM size            | `--size` / `box.size`         | `cpu-memory[-disk]` in GB, e.g. `4-8-20`                           |
+| Default checkpoint | `box.defaultCheckpoint`       | Generic key; no per-provider variant                               |
+| Base image         | `AGENTBOX_LUXOR_BASE_IMAGE`   | Luxor Sandbox base image `prepare` layers onto (default `sandbox`) |
+| Workspace          | `AGENTBOX_LUXOR_WORKSPACE_ID` | Defaults to the token's own scope                                  |
+| Session lifetime   | `AGENTBOX_LUXOR_TIMEOUT_MS`   | Seeds the host keepalive loop                                      |
 
 The baked base snapshot id lives in `~/.agentbox/tenki-prepared.json`, managed by this plugin.
 
@@ -142,12 +142,12 @@ taken live; the source box keeps running.
 - **No base image**: run `agentbox prepare --provider luxor`. Boxes boot from a snapshot baked in
   your own Luxor Agent Cloud workspace, so this is required once per workspace. If that snapshot is later deleted
   (or the token is pointed at another workspace), the next `prepare` notices and re-bakes.
-- **Box expired mid-session**: raise `AGENTBOX_LUXORAI_TIMEOUT_MS`; the host keepalive extends a
+- **Box expired mid-session**: raise `AGENTBOX_LUXOR_TIMEOUT_MS`; the host keepalive extends a
   working session, but it starts from the lifetime the box was created with.
 - **Attach fails to open a shell**: attach needs `ssh` and `ssh-keygen` on the host. Per-box key
   material lives in `~/.agentbox/boxes/<session-id>/ssh/`; the certificate is re-minted on every
   attach, so deleting that directory is safe and simply regenerates it.
-- **Attach as a different user**: set `AGENTBOX_LUXORAI_SSH_USER` if a custom base image does not run
+- **Attach as a different user**: set `AGENTBOX_LUXOR_SSH_USER` if a custom base image does not run
   as `tenki`.
 
 ## Security considerations
@@ -163,7 +163,7 @@ taken live; the source box keeps running.
 - **The VM is the boundary, not the in-box user.** Inside a box the agent has passwordless
   `sudo` and Docker access, which is root-equivalent by design; in-box Docker requires it.
 - Interactive attach trusts the Luxor Sandbox gateway's TLS rather than an SSH host key (the "host" is a
-  session id, not a stable endpoint). If you override `LUXORAI_BASE_URL` or `LUXORAI_GATEWAY_ADDRESS`
+  session id, not a stable endpoint). If you override `LUXOR_BASE_URL` or `LUXOR_GATEWAY_ADDRESS`
   (or their `TENKI_*` equivalents),
   point them only at endpoints you trust.
 - Preview URLs are public: anyone holding one can reach the port, with no token. Use the signed

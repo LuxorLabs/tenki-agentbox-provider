@@ -1,6 +1,6 @@
 {
   "name": "@tenkicloud/agentbox-provider",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Luxor Sandbox provider plugin for AgentBox: run coding agents in Luxor Agent Cloud VMs",
   "license": "MIT",
   "author": "Luxor Labs",
@@ -66,7 +66,7 @@
   "dependencies": {
     "@clack/prompts": "^0.9.0",
     "@madarco/agentbox-provider-sdk": "^4",
-    "@tenkicloud/sandbox": "^1.4.0"
+    "@tenkicloud/sandbox": "^1.5.3"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
