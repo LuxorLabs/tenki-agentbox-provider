@@ -11,6 +11,8 @@ All notable changes to this package are documented here. The format follows
 - Environment variables now use the `LUXOR_` prefix (for example `LUXOR_AUTH_TOKEN` and
   `AGENTBOX_LUXOR_TIMEOUT_MS`). `LUXORAI_*` and `AGENTBOX_LUXORAI_*` variables are no longer read;
   `TENKI_*` and `AGENTBOX_TENKI_*` still work as a fallback.
+- Requires `@tenkicloud/sandbox` 1.5.3 or newer, the first SDK release that reads `LUXOR_*` and no
+  longer reads `LUXORAI_*`.
 
 ## 0.3.0 - 2026-11-12
 

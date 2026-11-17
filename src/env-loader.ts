@@ -1,6 +1,6 @@
 /**
- * Tenki env auto-loader. The `@tenkicloud/sandbox` SDK reads `TENKI_AUTH_TOKEN`
- * from `process.env` (and we honor optional `TENKI_BASE_URL` /
+ * Tenki env auto-loader. The `@tenkicloud/sandbox` SDK reads `LUXOR_AUTH_TOKEN`
+ * and `TENKI_AUTH_TOKEN` from `process.env` (and we honor optional `TENKI_BASE_URL` /
  * `TENKI_GATEWAY_ADDRESS` overrides for non-default / self-hosted control
  * planes). We seed those from `~/.agentbox/secrets.env` — the store AgentBox's
  * built-in cloud providers use — so the SDK Just Works after a one-time setup.
