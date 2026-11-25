@@ -5,8 +5,8 @@
  *
  * Call shapes are the ones `credentials.ts` already used (`confirm({…})`,
  * `password({…})`, `isCancel(…)`), so that file only swaps its import. Output
- * is plain text: no colour, no spinner, no `process.stdout` feature beyond one
- * write per line.
+ * is plain text: no colour and no spinner. The only terminal control is in the
+ * masked prompt, which writes one `*` per character and `\b \b` to erase one.
  *
  * Ctrl+C resolves with the `CANCEL` symbol instead of throwing; `exitOnCancel`
  * in credentials.ts turns that into exit 130. Return types say `| symbol` (as
@@ -59,9 +59,16 @@ export function isCancel(value: unknown): value is Cancel {
   return value === CANCEL;
 }
 
-/** One echoed line. EOF, or the interface closing under us, means `CANCEL`. */
-async function question(query: string): Promise<string | Cancel> {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
+/**
+ * One line. EOF, or the interface closing under us, means `CANCEL`. With
+ * `echo: false` the interface gets no output and runs in non-terminal mode, so
+ * readline never writes what it reads back to stdout: the masked prompt's pipe
+ * fallback uses that, since stdout may still be a terminal when stdin is a pipe.
+ */
+async function question(query: string, { echo = true } = {}): Promise<string | Cancel> {
+  const rl = echo
+    ? createInterface({ input: process.stdin, output: process.stdout })
+    : createInterface({ input: process.stdin, terminal: false });
   try {
     return (await rl.question(query)).trim();
   } catch {
@@ -149,14 +156,14 @@ export function feedSecretInput(
 /**
  * One line with the characters masked. On a TTY this reads raw mode itself and
  * echoes `*` per character (plain `readline` leaves the terminal's own echo on,
- * which would print the token); on a pipe it falls back to `question`, where
- * nothing echoes because the producer of the pipe owns the echo. stdin ending
+ * which would print the token); on a pipe it falls back to `question` with
+ * echo off, so nothing is written back even when stdout is a terminal. stdin ending
  * under us (the terminal went away) cancels rather than hanging.
  */
 function questionSecret(query: string): Promise<string | Cancel> {
   const { stdin, stdout } = process;
   stdout.write(query);
-  if (!stdin.isTTY) return question('');
+  if (!stdin.isTTY) return question('', { echo: false });
 
   return new Promise((resolve) => {
     stdin.setRawMode(true);
