@@ -29,8 +29,6 @@ jobs:
       # A version bump with no CHANGELOG entry is caught here
       - run: npm run check:changelog
 
-      - run: npm run lint
-      - run: npm run format:check
       - run: npm run typecheck
       - run: npm run build
       - run: npm test

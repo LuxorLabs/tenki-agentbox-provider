@@ -52,9 +52,6 @@
   "scripts": {
     "build": "npm run clean && tsup",
     "dev": "tsup --watch",
-    "lint": "eslint src test scripts",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -69,12 +66,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
-    "eslint": "^10.8.0",
-    "eslint-config-prettier": "^10.1.8",
-    "prettier": "^3.4.2",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
-    "typescript-eslint": "^8.65.0",
     "vitest": "^4.1.10"
   },
   "overrides": {

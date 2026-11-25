@@ -7,8 +7,7 @@ issue.
 
 ## Getting set up
 
-The package itself runs on Node.js 20 or newer (`engines`), but the dev toolchain needs a recent
-patch line — eslint 10 requires Node `^20.19` / `^22.13` / `>=24`. CI runs on 22.
+The package itself runs on Node.js 20 or newer (`engines`). CI runs on 22.
 
 ```bash
 npm install
@@ -22,8 +21,6 @@ CI runs all of these, so run them before opening a pull request:
 
 ```bash
 npm run check:changelog
-npm run lint
-npm run format:check
 npm run typecheck
 npm run build
 npm test
@@ -52,7 +49,8 @@ minutes into a live, billable bake. Keep that property — if you change the pla
 
 - **TypeScript strict, ESM.** `verbatimModuleSyntax` is on, so type-only imports must say
   `import type`.
-- **Prettier and ESLint** decide formatting and lint. Run `npm run format`; don't hand-format.
+- **Match the surrounding formatting.** No formatter or linter runs in CI any more; keep the
+  existing prettier-shaped style and let `npm run typecheck` catch the type-level mistakes.
 - **No emojis** in code, comments, or program output.
 - **Comments explain _why_.** Names carry the _what_. If something non-obvious cost you debugging
   time, leave a note — several of the invariants in `src/prepare.ts` and `src/backend.ts` are there
