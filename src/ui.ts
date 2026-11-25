@@ -72,10 +72,86 @@ async function question(query: string): Promise<string | Cancel> {
 }
 
 /**
+ * Where the masked reader is inside an escape sequence. Arrow keys, Home/End,
+ * Delete and the bracketed-paste markers arrive as `ESC [ … final` (CSI) or
+ * `ESC O x` (SS3); a terminal may split one across reads, so this survives
+ * between chunks.
+ */
+type EscapeState = 'none' | 'esc' | 'csi' | 'ss3';
+
+export interface SecretInput {
+  value: string;
+  escape: EscapeState;
+}
+
+export function newSecretInput(): SecretInput {
+  return { value: '', escape: 'none' };
+}
+
+/**
+ * Feed one raw-mode chunk to the masked reader. Returns what to write back to
+ * the terminal (only `*` and `\b \b`, never the typed characters) and, once
+ * the line ends, whether it was submitted or cancelled. Enter submits; Ctrl+C
+ * and Ctrl+D cancel, as `@clack/prompts` did. Escape sequences are consumed
+ * whole and ignored, so they can't put stray bytes into the token; the text
+ * between bracketed-paste markers is kept, since that is the pasted token. An
+ * ESC followed by anything else (Alt+key) drops both characters.
+ */
+export function feedSecretInput(
+  input: SecretInput,
+  chunk: string,
+): { echo: string; done?: 'submit' | 'cancel' } {
+  let echo = '';
+  const eraseOne = (): void => {
+    if (input.value.length === 0) return;
+    input.value = input.value.slice(0, -1);
+    echo += '\b \b';
+  };
+  for (const ch of chunk) {
+    // A control character never belongs to a sequence: it ends a malformed or
+    // abandoned one (a lone Esc, then Enter) and is handled as itself below.
+    if (input.escape !== 'none' && ch < ' ') input.escape = 'none';
+    if (input.escape === 'esc') {
+      input.escape = ch === '[' ? 'csi' : ch === 'O' ? 'ss3' : 'none';
+      continue;
+    }
+    if (input.escape === 'csi') {
+      // Parameter and intermediate bytes are 0x20-0x3F; the final byte (0x40-0x7E) ends it.
+      if (ch >= '@' && ch <= '~') input.escape = 'none';
+      continue;
+    }
+    if (input.escape === 'ss3') {
+      input.escape = 'none';
+      continue;
+    }
+    if (ch === '\u001b') {
+      input.escape = 'esc';
+      continue;
+    }
+    if (ch === '\r' || ch === '\n') return { echo, done: 'submit' };
+    if (ch === '\u0003' || ch === '\u0004') return { echo, done: 'cancel' };
+    if (ch === '\u007f' || ch === '\b') {
+      eraseOne();
+      continue;
+    }
+    if (ch === '\u0015') {
+      // Ctrl+U — clear the line, for a bad paste.
+      while (input.value.length > 0) eraseOne();
+      continue;
+    }
+    if (ch < ' ') continue;
+    input.value += ch;
+    echo += '*';
+  }
+  return { echo };
+}
+
+/**
  * One line with the characters masked. On a TTY this reads raw mode itself and
  * echoes `*` per character (plain `readline` leaves the terminal's own echo on,
  * which would print the token); on a pipe it falls back to `question`, where
- * nothing echoes because the producer of the pipe owns the echo.
+ * nothing echoes because the producer of the pipe owns the echo. stdin ending
+ * under us (the terminal went away) cancels rather than hanging.
  */
 function questionSecret(query: string): Promise<string | Cancel> {
   const { stdin, stdout } = process;
@@ -86,39 +162,23 @@ function questionSecret(query: string): Promise<string | Cancel> {
     stdin.setRawMode(true);
     stdin.setEncoding('utf8');
     stdin.resume();
-    let value = '';
+    const input = newSecretInput();
     const finish = (result: string | Cancel): void => {
       stdin.removeListener('data', onData);
-      stdin.setRawMode(false);
+      stdin.removeListener('end', onEnd);
+      if (!stdin.destroyed) stdin.setRawMode(false);
       stdin.pause();
       stdout.write('\n');
       resolve(result);
     };
+    const onEnd = (): void => finish(CANCEL);
     const onData = (chunk: string): void => {
-      for (const ch of chunk) {
-        if (ch === '\r' || ch === '\n') return finish(value);
-        if (ch === '\u0003') return finish(CANCEL);
-        if (ch === '\u007f' || ch === '\b') {
-          if (value.length > 0) {
-            value = value.slice(0, -1);
-            stdout.write('\b \b');
-          }
-          continue;
-        }
-        if (ch === '\u0015') {
-          // Ctrl+U — clear the line, for a bad paste.
-          while (value.length > 0) {
-            value = value.slice(0, -1);
-            stdout.write('\b \b');
-          }
-          continue;
-        }
-        if (ch < ' ') continue;
-        value += ch;
-        stdout.write('*');
-      }
+      const { echo, done } = feedSecretInput(input, chunk);
+      if (echo) stdout.write(echo);
+      if (done) finish(done === 'submit' ? input.value : CANCEL);
     };
     stdin.on('data', onData);
+    stdin.once('end', onEnd);
   });
 }
 
