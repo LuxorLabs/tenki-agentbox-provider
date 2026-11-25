@@ -20,7 +20,7 @@ import { defineConfig } from 'tsup';
  * output — a coin-flip that drops attach-helper.cjs from the build. The `build`
  * script clears dist/ once, up front, instead.
  */
-const EXTERNAL = ['@madarco/agentbox-provider-sdk', '@clack/prompts', '@tenkicloud/sandbox'];
+const EXTERNAL = ['@madarco/agentbox-provider-sdk', '@tenkicloud/sandbox'];
 
 export default defineConfig([
   {

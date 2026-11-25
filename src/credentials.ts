@@ -11,7 +11,7 @@
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 import { hostOpenCommand } from '@madarco/agentbox-provider-sdk';
-import { cancel, confirm, intro, isCancel, log, note, outro, password } from '@clack/prompts';
+import { cancel, confirm, intro, isCancel, log, note, outro, password } from './ui.js';
 import { ensureTenkiEnvLoaded, readTenkiAuthToken, reloadTenkiEnv } from './env-loader.js';
 import { hasUsableCredentials } from './sdk.js';
 import { writeManagedSecrets, type CredSetResult } from './secrets.js';
